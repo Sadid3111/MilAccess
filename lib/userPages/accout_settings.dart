@@ -24,8 +24,6 @@ class AccountSettingsPage extends StatelessWidget {
               // TODO: Navigate to username change screen or dialog
             },
           ),
-
-          // Example setting: Change password
           ListTile(
             leading: const Icon(Icons.lock),
             title: const Text('Change Password'),
