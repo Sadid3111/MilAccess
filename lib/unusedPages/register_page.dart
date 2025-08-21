@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/unusedPages/chat_page.dart';
-// import 'package:my_chat_app/pages/chat_page.dart';
-// import 'package:my_chat_app/pages/login_page.dart';
-//import 'package:my_chat_app/utils/constants.dart';
-//'import 'package:supabase_flutter/supabase_flutter.dart';
-
-const formPadding = EdgeInsets.all(16.0);
-const formSpacer = SizedBox(height: 20);
+import 'package:my_chat_app/pages/chat_page.dart';
+import 'package:my_chat_app/pages/login_page.dart';
+import 'package:my_chat_app/utils/constants.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({Key? key, required this.isRegistering}) : super(key: key);
@@ -40,23 +36,24 @@ class _RegisterPageState extends State<RegisterPage> {
     final email = _emailController.text;
     final password = _passwordController.text;
     final username = _usernameController.text;
-    //try {
-    // await supabase.auth.signUp(
-    //     email: email, password: password, data: {'username': username});
-    Navigator.of(
-      context,
-    ).pushAndRemoveUntil(ChatPage.route(), (route) => false);
-    // } on AuthException catch (error) {
-    //   context.showErrorSnackBar(message: error.message);
-    // } catch (error) {
-    //   context.showErrorSnackBar(message: "Unexpected error occured!");
-    // }
+    try {
+      await supabase.auth.signUp(
+          email: email, password: password, data: {'username': username});
+      Navigator.of(context)
+          .pushAndRemoveUntil(ChatPage.route(), (route) => false);
+    } on AuthException catch (error) {
+      context.showErrorSnackBar(message: error.message);
+    } catch (error) {
+      context.showErrorSnackBar(message: unexpectedErrorMessage);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Register')),
+      appBar: AppBar(
+        title: const Text('Register'),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -64,7 +61,9 @@ class _RegisterPageState extends State<RegisterPage> {
           children: [
             TextFormField(
               controller: _emailController,
-              decoration: const InputDecoration(label: Text('Email')),
+              decoration: const InputDecoration(
+                label: Text('Email'),
+              ),
               validator: (val) {
                 if (val == null || val.isEmpty) {
                   return 'Required';
@@ -77,7 +76,9 @@ class _RegisterPageState extends State<RegisterPage> {
             TextFormField(
               controller: _passwordController,
               obscureText: true,
-              decoration: const InputDecoration(label: Text('Password')),
+              decoration: const InputDecoration(
+                label: Text('Password'),
+              ),
               validator: (val) {
                 if (val == null || val.isEmpty) {
                   return 'Required';
@@ -91,7 +92,9 @@ class _RegisterPageState extends State<RegisterPage> {
             formSpacer,
             TextFormField(
               controller: _usernameController,
-              decoration: const InputDecoration(label: Text('Username')),
+              decoration: const InputDecoration(
+                label: Text('Username'),
+              ),
               validator: (val) {
                 if (val == null || val.isEmpty) {
                   return 'Required';
@@ -111,10 +114,10 @@ class _RegisterPageState extends State<RegisterPage> {
             formSpacer,
             TextButton(
               onPressed: () {
-               // Navigator.of(context).push(LoginPage.route());
+                Navigator.of(context).push(LoginPage.route());
               },
               child: const Text('I already have an account'),
-            ),
+            )
           ],
         ),
       ),

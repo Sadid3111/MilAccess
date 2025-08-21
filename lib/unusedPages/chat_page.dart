@@ -1,15 +1,23 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/models/message.dart';
-import 'package:flutter_application_1/models/profile.dart';
-import 'package:flutter_application_1/widgets/preloder.dart';
+
+import 'package:my_chat_app/models/message.dart';
+import 'package:my_chat_app/models/profile.dart';
+import 'package:my_chat_app/utils/constants.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timeago/timeago.dart';
 
+/// Page to chat with someone.
+///
+/// Displays chat bubbles as a ListView and TextField to enter new chat.
 class ChatPage extends StatefulWidget {
   const ChatPage({Key? key}) : super(key: key);
 
   static Route<void> route() {
-    return MaterialPageRoute(builder: (context) => const ChatPage());
+    return MaterialPageRoute(
+      builder: (context) => const ChatPage(),
+    );
   }
 
   @override
@@ -17,30 +25,19 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  final Stream<List<Message>> _messagesStream = Stream.periodic(
-    const Duration(seconds: 5),
-    (count) => [
-      Message(
-        id: 'msg${count * 2 + 1}',
-        profileId: 'user1',
-        content: 'Message #${count * 2 + 1}',
-        createdAt: DateTime.now(),
-        isMine: true,
-      ),
-      Message(
-        id: 'msg${count * 2 + 2}',
-        profileId: 'user2',
-        content: 'Reply #${count * 2 + 2}',
-        createdAt: DateTime.now(),
-        isMine: false,
-      ),
-    ],
-  );
-
+  late final Stream<List<Message>> _messagesStream;
   final Map<String, Profile> _profileCache = {};
 
   @override
   void initState() {
+    final myUserId = supabase.auth.currentUser!.id;
+    _messagesStream = supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .order('created_at')
+        .map((maps) => maps
+            .map((map) => Message.fromMap(map: map, myUserId: myUserId))
+            .toList());
     super.initState();
   }
 
@@ -48,6 +45,12 @@ class _ChatPageState extends State<ChatPage> {
     if (_profileCache[profileId] != null) {
       return;
     }
+    final data =
+        await supabase.from('profiles').select().eq('id', profileId).single();
+    final profile = Profile.fromMap(data);
+    setState(() {
+      _profileCache[profileId] = profile;
+    });
   }
 
   @override
@@ -88,9 +91,7 @@ class _ChatPageState extends State<ChatPage> {
               ],
             );
           } else {
-            return const Center(
-              child: Text('Network Error', style: TextStyle(color: Colors.red)),
-            );
+            return preloader;
           }
         },
       ),
@@ -100,7 +101,9 @@ class _ChatPageState extends State<ChatPage> {
 
 /// Set of widget that contains TextField and Button to submit message
 class _MessageBar extends StatefulWidget {
-  const _MessageBar({Key? key}) : super(key: key);
+  const _MessageBar({
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<_MessageBar> createState() => _MessageBarState();
@@ -108,39 +111,6 @@ class _MessageBar extends StatefulWidget {
 
 class _MessageBarState extends State<_MessageBar> {
   late final TextEditingController _textController;
-  @override
-  void initState() {
-    _textController = TextEditingController();
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    _textController.dispose();
-    super.dispose();
-  }
-
-  void _submitMessage() async {
-    final text = _textController.text.trim();
-    setState(() {
-      
-    });
-    _ChatBubble(
-      message: Message(
-        id: '1',
-        profileId: '1',
-        content: "hello",
-        createdAt: DateTime.now(),
-        isMine: true,
-      ),
-      profile: null,
-    );
-    //final myUserId = supabase.auth.currentUser!.id;
-    if (text.isEmpty) {
-      return;
-    }
-    _textController.clear();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -175,11 +145,45 @@ class _MessageBarState extends State<_MessageBar> {
       ),
     );
   }
+
+  @override
+  void initState() {
+    _textController = TextEditingController();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
+  void _submitMessage() async {
+    final text = _textController.text;
+    final myUserId = supabase.auth.currentUser!.id;
+    if (text.isEmpty) {
+      return;
+    }
+    _textController.clear();
+    try {
+      await supabase.from('messages').insert({
+        'profile_id': myUserId,
+        'content': text,
+      });
+    } on PostgrestException catch (error) {
+      context.showErrorSnackBar(message: error.message);
+    } catch (_) {
+      context.showErrorSnackBar(message: unexpectedErrorMessage);
+    }
+  }
 }
 
 class _ChatBubble extends StatelessWidget {
-  const _ChatBubble({Key? key, required this.message, required this.profile})
-    : super(key: key);
+  const _ChatBubble({
+    Key? key,
+    required this.message,
+    required this.profile,
+  }) : super(key: key);
 
   final Message message;
   final Profile? profile;
@@ -196,7 +200,10 @@ class _ChatBubble extends StatelessWidget {
       const SizedBox(width: 12),
       Flexible(
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          padding: const EdgeInsets.symmetric(
+            vertical: 8,
+            horizontal: 12,
+          ),
           decoration: BoxDecoration(
             color: message.isMine
                 ? Theme.of(context).primaryColor
@@ -216,9 +223,8 @@ class _ChatBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 18),
       child: Row(
-        mainAxisAlignment: message.isMine
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
+        mainAxisAlignment:
+            message.isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: chatContents,
       ),
     );
