@@ -19,6 +19,17 @@ class AhqroutesState extends State<Ahqroutes> {
     });
   }
 
+  void _onNavTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
