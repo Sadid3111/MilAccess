@@ -123,15 +123,30 @@ final List<ContactInfo> predefinedContacts = [
 
 Future<void> storeContacts(ContactInfo contact) async {
   try {
-    await FirebaseFirestore.instance
+    final docRef = await FirebaseFirestore.instance
         .collection('user')
         .doc(UserData.uid)
         .collection('contacts')
         .add(contact.toMap());
-
+    contact.id = docRef.id;
     print("Contact stored successfully!");
   } catch (e) {
     print("Failed to store contact: $e");
+  }
+}
+
+Future<void> contactDeletion(ContactInfo contact) async {
+  try {
+    await FirebaseFirestore.instance
+        .collection('user')
+        .doc(UserData.uid)
+        .collection('contacts')
+        .doc(contact.id) // Use the contact's unique ID
+        .delete();
+
+    print("Contact deleted successfully!");
+  } catch (e) {
+    print("Failed to delete contact: $e");
   }
 }
 
@@ -203,7 +218,7 @@ class ContactInfoPageState extends State<ContactInfoPage> {
 
       // Convert documents into ContactInfo objects
       final contactList = snapshot.docs.map((doc) {
-        return ContactInfo.fromMap(doc.data());
+        return ContactInfo.fromMap(doc.data(), doc.id);
       }).toList();
       setState(() {
         contacts.addAll(contactList);
@@ -232,7 +247,10 @@ class ContactInfoPageState extends State<ContactInfoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Contact Info")),
+      appBar: AppBar(
+        title: const Text("Contact Info"),
+        backgroundColor: Colors.green,
+      ),
       body: Column(
         children: [
           // Search Bar
@@ -440,6 +458,15 @@ class ContactInfoPageState extends State<ContactInfoPage> {
                                   color: Colors.purple,
                                   onPressed: () => _showQRCode(contact),
                                 ),
+                                !predefinedContacts.contains(contact)
+                                    ? _buildActionButton(
+                                        icon: Icons.delete,
+                                        label: 'Delete',
+                                        color: Colors.red,
+                                        onPressed: () =>
+                                            _deleteContact(contact),
+                                      )
+                                    : const SizedBox.shrink(),
                               ],
                             ),
                           ],
@@ -472,7 +499,7 @@ class ContactInfoPageState extends State<ContactInfoPage> {
             ),
           );
         }, // Add icon
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.green,
         child: const Icon(Icons.add), // Customize color
       ),
     );
@@ -506,7 +533,7 @@ class ContactInfoPageState extends State<ContactInfoPage> {
             backgroundColor: color,
             foregroundColor: Colors.white,
             shape: const CircleBorder(),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(8),
           ),
           child: Icon(icon),
         ),
@@ -558,6 +585,45 @@ class ContactInfoPageState extends State<ContactInfoPage> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteContact(ContactInfo contact) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Contact'),
+        content: Text(
+          'Are you sure you want to delete the contact "${contact.name}"?',
+          style: const TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Close the dialog
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await contactDeletion(contact);
+              setState(() {
+                contacts.remove(
+                  contact,
+                ); // Assuming `contacts` is your list of contacts
+              });
+              Navigator.pop(context);
+              context.showErrorSnackBar(
+                message: 'Contact deleted',
+              ); // Close the dialog after deletion
+            },
+            child: const Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.red,
+              ), // Highlight the delete button
+            ),
           ),
         ],
       ),
@@ -757,6 +823,7 @@ void showContactInfoModal(BuildContext context, ContactInfo contactInfo) {
 
 // Example ContactInfo class
 class ContactInfo {
+  String? id;
   String name;
   String rank;
   String position;
@@ -769,6 +836,7 @@ class ContactInfo {
   String priority;
 
   ContactInfo({
+    this.id,
     required this.name,
     required this.rank,
     required this.position,
@@ -782,6 +850,7 @@ class ContactInfo {
   });
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'name': name,
       'rank': rank,
       'position': position,
@@ -795,8 +864,9 @@ class ContactInfo {
     };
   }
 
-  factory ContactInfo.fromMap(Map<String, dynamic> map) {
+  factory ContactInfo.fromMap(Map<String, dynamic> map, String docId) {
     return ContactInfo(
+      id: docId,
       name: map['name'] ?? '',
       rank: map['rank'] ?? '',
       position: map['position'] ?? '',

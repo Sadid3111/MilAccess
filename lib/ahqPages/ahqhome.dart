@@ -1,31 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/ahqPages/pendingrequests.dart';
+import 'package:flutter_application_1/ahqPages/profile_page.dart';
 import 'package:flutter_application_1/features/calendar/calendar_screen.dart';
+import 'package:flutter_application_1/models/user_data.dart';
+import 'package:flutter_application_1/userPages/contact_info_page.dart';
+import 'package:flutter_application_1/userPages/settings_page.dart';
+import 'package:flutter_application_1/userPages/training_calender_page.dart';
 import 'report_type.dart';
 import 'uploadrequests.dart';
 import 'documents.dart';
-
-// void main() {
-//   runApp(const AHQHome());
-// }
-
-int _selectedIndex = 0;
-
-// class AHQHome extends StatelessWidget {
-//   const AHQHome({super.key});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       debugShowCheckedModeBanner: false,
-//       title: 'Admin Dashboard',
-//       theme: ThemeData(
-//         useMaterial3: true,
-//         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-//       ),
-//       home: const AdminDashboard(),
-//     );
-//   }
-// }
 
 class AHQHome extends StatefulWidget {
   const AHQHome({super.key});
@@ -35,24 +18,176 @@ class AHQHome extends StatefulWidget {
 }
 
 class _AHQHomeState extends State<AHQHome> {
+  final List<String> notifications = [
+    "New message from John",
+    "Your order has been shipped",
+    "Reminder: Meeting at 3 PM",
+    "Update available for your app",
+  ];
+  int _selectedIndex = 0;
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
+  void showNotificationPanel(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Notifications",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const Divider(),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: notifications.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(notifications[index]),
+                      leading: const Icon(Icons.notification_important),
+                      onTap: () {
+                        // Handle notification tap
+                        print("Tapped on: ${notifications[index]}");
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(color: Color(0xFFA8D5A2)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white,
+                    child: Icon(
+                      Icons.person,
+                      size: 40,
+                      color: Colors.green[800],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Welcome, ${UserData.name}!',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    UserData.email,
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Dashboard'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.contacts),
+              title: const Text('Contacts'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ContactInfoPage(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.pending_actions),
+              title: const Text('Pending Requests'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PendingRequests(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Profile'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfilePage()),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Settings'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SettingsPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.help),
+              title: const Text('Help & Support'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.info),
+              title: const Text('About'),
+              onTap: () => Navigator.pop(context),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Logout', style: TextStyle(color: Colors.red)),
+              onTap: () => signOut(context),
+            ),
+          ],
+        ),
+      ),
       backgroundColor: const Color(0xFFA8D5A2), // Light green background
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const Icon(Icons.menu, color: Colors.black),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 16.0),
-            child: Icon(Icons.notifications_none, color: Colors.black),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications),
+            onPressed: () {
+              showNotificationPanel(context); // Open the modal bottom sheet
+            },
           ),
         ],
       ),
@@ -143,7 +278,7 @@ class _AHQHomeState extends State<AHQHome> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const CalendarScreen(),
+                    builder: (context) => const TrainingCalendarPage(),
                   ),
                 );
               },

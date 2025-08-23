@@ -30,6 +30,7 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!context.mounted) return;
       await fetchPendingReqs(context);
     });
   }
@@ -48,8 +49,10 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
             .toList();
       });
     } on FirebaseAuthException catch (e) {
+      if (!context.mounted) return;
       context.showErrorSnackBar(message: e.toString());
     } catch (e) {
+      if (!context.mounted) return;
       context.showErrorSnackBar(message: e.toString());
     }
   }
@@ -104,13 +107,14 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
       setState(() {
         request['status'] = 'accepted';
       });
-
+      if (!mounted) return;
       _showMessageBox(
         context,
         'Request Accepted',
         '${request['name']}\'s request has been accepted.',
       );
     } catch (e) {
+      if (!mounted) return;
       _showMessageBox(context, 'Error', 'Failed to accept request: $e');
     }
   }
@@ -125,7 +129,7 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
       setState(() {
         request['status'] = 'rejected';
       });
-
+      if (!mounted) return;
       _showMessageBox(
         context,
         'Request Rejected',
@@ -186,32 +190,32 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
       appBar: AppBar(
         title: const Text('Pending Requests'),
         backgroundColor: Colors.green[700],
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.white),
-            onPressed: () {
-              // Handle notification tap
-            },
-          ),
-        ],
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.notifications, color: Colors.white),
+        //     onPressed: () {
+        //       // Handle notification tap
+        //     },
+        //   ),
+        // ],
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'Pending Requests',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
-              ),
-            ),
+            // Padding(
+            //   padding: const EdgeInsets.all(16.0),
+            //   child: Text(
+            //     'Pending Requests',
+            //     style: TextStyle(
+            //       fontSize: 24,
+            //       fontWeight: FontWeight.bold,
+            //       color: Colors.grey[800],
+            //     ),
+            //   ),
+            // ),
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: SearchBarWidget(hintText: 'Search...'),
             ),
             const SizedBox(height: 10),

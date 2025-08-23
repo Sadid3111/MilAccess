@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/user_data.dart';
 
@@ -809,15 +808,7 @@ class ProfilePageState extends State<ProfilePage>
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Sign Out'),
-              onTap: () async {
-                await FirebaseAuth.instance.signOut();
-                UserData.reset();
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/welcome',
-                  (route) => false,
-                );
-              },
+              onTap: () => signOut(context),
             ),
           ],
         ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/userPages/chat_contact.dart';
 import 'package:flutter_application_1/userPages/contact_info_page.dart';
-import 'package:flutter_application_1/userPages/pending_requests_page.dart';
 import 'package:flutter_application_1/ahqPages/profile_page.dart';
 import 'package:flutter_application_1/userPages/user_dashboard.dart';
 
@@ -41,8 +40,7 @@ class UserroutesState extends State<Userroutes> {
         children: const [
           UserDashboardPage(),
           ContactInfoPage(),
-          PendingRequestPage(),
-          //ChatPage(),
+          //PendingRequestPage(),
           ChatContactListScreen(),
           ProfilePage(),
         ],
@@ -74,13 +72,13 @@ class UserroutesState extends State<Userroutes> {
               ),
               label: 'Contacts',
             ),
-            BottomNavigationBarItem(
-              icon: Padding(
-                padding: EdgeInsets.only(top: 6),
-                child: Icon(Icons.pending_actions),
-              ),
-              label: 'Pending',
-            ),
+            // BottomNavigationBarItem(
+            //   icon: Padding(
+            //     padding: EdgeInsets.only(top: 6),
+            //     child: Icon(Icons.pending_actions),
+            //   ),
+            //   label: 'Pending',
+            // ),
             BottomNavigationBarItem(
               icon: Padding(
                 padding: EdgeInsets.only(top: 6),

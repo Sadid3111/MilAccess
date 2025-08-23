@@ -13,13 +13,20 @@ class ChatContactListScreen extends StatefulWidget {
 }
 
 class _ChatContactListScreenState extends State<ChatContactListScreen> {
+  TextEditingController searchController = TextEditingController();
   late Future<List<Map<String, dynamic>>> contactsList;
   final Map<String, int> unreadCount = {};
   StreamSubscription<QuerySnapshot>? _contacts;
+  String searchQuery = '';
+  List<Map<String, dynamic>> filteredContacts = [];
   @override
   void initState() {
     super.initState();
-    // final id = 'BB7JJHQ9gufIsTYJrU9OBZx9BcU2_cYsuUIPhGOduA9EANPszXgTXx7o2';
+    searchController.addListener(() {
+      setState(() {
+        searchQuery = searchController.text.toLowerCase();
+      });
+    });
     contactsList = fetchUsersWithRoleUser();
     _contacts = FirebaseFirestore.instance
         .collection('chat')
@@ -42,6 +49,7 @@ class _ChatContactListScreenState extends State<ChatContactListScreen> {
   @override
   void dispose() {
     _contacts!.cancel();
+    searchController.dispose();
     super.dispose();
   }
 
@@ -68,57 +76,87 @@ class _ChatContactListScreenState extends State<ChatContactListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chat Inbox'),
+        backgroundColor: Colors.green,
         //backgroundColor: Colors.blue[900],
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: contactsList,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No users found'));
-          }
-          final contacts = snapshot.data!;
-          return ListView.builder(
-            itemCount: contacts.length,
-            itemBuilder: (context, index) {
-              final contact = contacts[index];
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: NetworkImage(
-                    contact['profilePicture'] ??
-                        'https://cdn-icons-png.flaticon.com/512/5436/5436245.png',
-                  ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                hintText: 'Search contacts...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide.none,
                 ),
-                title: Text(
-                  contact['name']!,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle:
-                    unreadCount[getChatId(contact['uid'])] != null &&
-                        unreadCount[getChatId(contact['uid'])]! > 0
-                    ? Text(
-                        '${unreadCount[getChatId(contact['uid'])]} new message(s)',
-                        style: const TextStyle(color: Colors.red),
-                      )
-                    : Text(contact['unitName']!),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ChatInboxScreen(
-                        contactName: contact['name'] ?? 'unknown',
-                        chatId: getChatId(contact['uid']),
+                filled: true,
+                fillColor: Colors.grey[200],
+              ),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: contactsList,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text('No users found'));
+                }
+                final contacts = snapshot.data!;
+                filteredContacts = contacts
+                    .where(
+                      (contact) =>
+                          contact['name']!.toLowerCase().contains(searchQuery),
+                    )
+                    .toList();
+
+                return ListView.builder(
+                  itemCount: filteredContacts.length,
+                  itemBuilder: (context, index) {
+                    final contact = filteredContacts[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage: NetworkImage(
+                          contact['profilePicture'] ??
+                              'https://cdn-icons-png.flaticon.com/512/5436/5436245.png',
+                        ),
                       ),
-                    ),
-                  );
-                },
-              );
-            },
-          );
-        },
+                      title: Text(
+                        contact['name']!,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle:
+                          unreadCount[getChatId(contact['uid'])] != null &&
+                              unreadCount[getChatId(contact['uid'])]! > 0
+                          ? Text(
+                              '${unreadCount[getChatId(contact['uid'])]} new message(s)',
+                              style: const TextStyle(color: Colors.red),
+                            )
+                          : Text(contact['unitName']!),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatInboxScreen(
+                              contactName: contact['name'] ?? 'unknown',
+                              chatId: getChatId(contact['uid']),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

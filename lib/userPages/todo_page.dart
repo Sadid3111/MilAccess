@@ -1,52 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import 'package:flutter_application_1/models/todo_item.dart';
+import 'package:flutter_application_1/models/user_data.dart';
 
-// # MODELS
-// =================================================================================================
-class TodoItem {
-  String id;
-  String title;
-  DateTime dueDate;
-  TimeOfDay time;
-  String category;
-  String type;
-  bool isDone;
-
-  TodoItem({
-    String? id,
-    required this.title,
-    required this.dueDate,
-    required this.time,
-    required this.category,
-    required this.type,
-    this.isDone = false,
-  }) : id = id ?? DateTime.now().toIso8601String();
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'dueDate': dueDate.toIso8601String(),
-    'timeHour': time.hour,
-    'timeMinute': time.minute,
-    'category': category,
-    'type': type,
-    'isDone': isDone,
-  };
-
-  static TodoItem fromJson(Map<String, dynamic> json) => TodoItem(
-    id: json['id'],
-    title: json['title'],
-    dueDate: DateTime.parse(json['dueDate']),
-    time: TimeOfDay(hour: json['timeHour'], minute: json['timeMinute']),
-    category: json['category'],
-    type: json['type'],
-    isDone: json['isDone'],
-  );
-}
-
-// # WIDGETS
-// =================================================================================================
 class TodoPage extends StatefulWidget {
   const TodoPage({Key? key}) : super(key: key);
 
@@ -56,6 +12,7 @@ class TodoPage extends StatefulWidget {
 
 class _TodoPageState extends State<TodoPage> {
   List<TodoItem> tasks = [];
+  bool isLoading = false;
 
   @override
   void initState() {
@@ -64,25 +21,75 @@ class _TodoPageState extends State<TodoPage> {
   }
 
   Future<void> _loadTasks() async {
-    final prefs = await SharedPreferences.getInstance();
-    final tasksJson = prefs.getString('tasks');
-    if (tasksJson != null) {
-      final List<dynamic> jsonList = jsonDecode(tasksJson);
+    setState(() {
+      isLoading = true;
+    });
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('user')
+          .doc(UserData.uid)
+          .collection('todolist')
+          .get();
+
       setState(() {
-        tasks = jsonList.map((item) => TodoItem.fromJson(item)).toList();
+        tasks = querySnapshot.docs.map((doc) {
+          return TodoItem.fromJson(doc.data());
+        }).toList();
+      });
+    } catch (e) {
+      // Handle errors (e.g., network issues, permission issues)
+      print('Error fetching tasks: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to fetch tasks. Please try again later.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
       });
     }
   }
 
-  Future<void> _saveTasks() async {
-    final prefs = await SharedPreferences.getInstance();
-    final List<Map<String, dynamic>> jsonList = tasks
-        .map((item) => item.toJson())
-        .toList();
-    await prefs.setString('tasks', jsonEncode(jsonList));
+  Future<void> _saveTasks(TodoItem? task) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      await firestore
+          .collection('user')
+          .doc(UserData.uid)
+          .collection(
+            'todolist',
+          ) // Replace 'qnotes' with your Firestore subcollection name
+          .doc(task!.id) // Use the task's unique ID as the document ID
+          .set(
+            task.toJson(),
+            SetOptions(merge: true),
+          ); // Insert or update the document
+    } catch (e) {
+      print('Error saving task: $e');
+    }
   }
 
-  void _showTodoDialog({TodoItem? task}) {
+  Future<void> _deleteTasks(String id) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      // Delete the task from Firestore
+      await firestore
+          .collection('user')
+          .doc(UserData.uid)
+          .collection('todolist')
+          .doc(id)
+          .delete();
+
+      print('Task $id deleted successfully');
+    } catch (e) {
+      print('Error deleting task: $e');
+    }
+  }
+
+  Future<bool?> _showTodoDialog({TodoItem? task}) {
     final isEditing = task != null;
     final titleController = TextEditingController(text: task?.title);
     DateTime? selectedDate = task?.dueDate;
@@ -90,7 +97,7 @@ class _TodoPageState extends State<TodoPage> {
     String? selectedCategory = task?.category;
     String? selectedType = task?.type;
 
-    showModalBottomSheet(
+    return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       builder: (BuildContext ctx) {
@@ -114,7 +121,9 @@ class _TodoPageState extends State<TodoPage> {
                     const SizedBox(height: 20),
                     TextField(
                       controller: titleController,
-                      decoration: const InputDecoration(labelText: 'Task Title'),
+                      decoration: const InputDecoration(
+                        labelText: 'Task Title',
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Row(
@@ -135,7 +144,7 @@ class _TodoPageState extends State<TodoPage> {
                                 lastDate: DateTime(2100),
                               );
                               setState(() => selectedDate = picked);
-                                                        },
+                            },
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -193,7 +202,7 @@ class _TodoPageState extends State<TodoPage> {
                     const SizedBox(height: 20),
                     ElevatedButton(
                       child: Text(isEditing ? "Update Task" : "Save Task"),
-                      onPressed: () {
+                      onPressed: () async {
                         if (titleController.text.isEmpty ||
                             selectedDate == null ||
                             selectedTime == null ||
@@ -207,37 +216,42 @@ class _TodoPageState extends State<TodoPage> {
                           );
                           return;
                         }
-
+                        TodoItem todoItem;
                         if (isEditing) {
                           final index = tasks.indexWhere(
                             (element) => element.id == task.id,
                           );
                           if (index != -1) {
-                            setState(() {
-                              tasks[index] = TodoItem(
-                                id: task.id,
-                                title: titleController.text,
-                                dueDate: selectedDate!,
-                                time: selectedTime!,
-                                category: selectedCategory!,
-                                type: selectedType!,
-                                isDone: task.isDone,
-                              );
-                            });
+                            todoItem = TodoItem(
+                              id: task.id,
+                              title: titleController.text,
+                              dueDate: selectedDate!,
+                              time: selectedTime!,
+                              category: selectedCategory!,
+                              type: selectedType!,
+                              isDone: task.isDone,
+                            );
+                            tasks[index] = todoItem;
+                            await _saveTasks(todoItem);
                           }
                         } else {
-                          final newTask = TodoItem(
+                          todoItem = TodoItem(
+                            id: DateTime.now().millisecondsSinceEpoch
+                                .toString(),
+                            isDone: false,
                             title: titleController.text,
                             dueDate: selectedDate!,
                             time: selectedTime!,
                             category: selectedCategory!,
                             type: selectedType!,
                           );
-                          setState(() => tasks.add(newTask));
+                          tasks.add(todoItem);
+                          await _saveTasks(todoItem);
                         }
 
-                        _saveTasks();
-                        Navigator.of(ctx).pop();
+                        Navigator.of(
+                          ctx,
+                        ).pop(true); // return true to indicate change
                       },
                     ),
                     const SizedBox(height: 20),
@@ -251,13 +265,16 @@ class _TodoPageState extends State<TodoPage> {
     );
   }
 
-  void _deleteTask(String id) {
+  void _deleteTask(String id) async {
     setState(() {
       tasks.removeWhere((task) => task.id == id);
     });
-    _saveTasks();
+    await _deleteTasks(id);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Task deleted."), backgroundColor: Colors.green),
+      const SnackBar(
+        content: Text("Task deleted."),
+        backgroundColor: Colors.green,
+      ),
     );
   }
 
@@ -270,7 +287,7 @@ class _TodoPageState extends State<TodoPage> {
           value: item.isDone,
           onChanged: (value) {
             setState(() => item.isDone = value!);
-            _saveTasks();
+            _saveTasks(item);
           },
         ),
         title: Text(
@@ -284,9 +301,16 @@ class _TodoPageState extends State<TodoPage> {
         ),
         isThreeLine: true,
         trailing: PopupMenuButton<String>(
-          onSelected: (value) {
+          onSelected: (value) async {
             if (value == 'edit') {
-              _showTodoDialog(task: item);
+              final result = await _showTodoDialog(
+                task: item,
+              ); // await for dialog to finish
+              if (result == true) {
+                setState(() {
+                  // triggers rebuild of parent so UI updates with new tasks
+                });
+              }
             } else if (value == 'delete') {
               _deleteTask(item.id);
             }
@@ -304,14 +328,23 @@ class _TodoPageState extends State<TodoPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("To-Do List"), centerTitle: true),
-      body: tasks.isEmpty
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : tasks.isEmpty
           ? const Center(child: Text("No tasks added yet."))
           : ListView.builder(
               itemCount: tasks.length,
               itemBuilder: (ctx, i) => _buildTaskCard(tasks[i]),
             ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showTodoDialog(),
+        onPressed: () async {
+          final result = await _showTodoDialog(); // await for dialog to finish
+          if (result == true) {
+            setState(() {
+              // triggers rebuild of parent so UI updates with new tasks
+            });
+          }
+        },
         child: const Icon(Icons.add),
       ),
     );

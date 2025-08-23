@@ -1,4 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/models/note.dart';
+import 'package:flutter_application_1/models/user_data.dart';
 
 class QuickNotesPage extends StatefulWidget {
   const QuickNotesPage({super.key});
@@ -9,40 +12,137 @@ class QuickNotesPage extends StatefulWidget {
 
 class QuickNotesPageState extends State<QuickNotesPage> {
   List<Note> notes = [
-    Note(
-      id: '1',
-      title: 'Weekly Report',
-      content: 'Prepare weekly operational report for Monday meeting',
-      createdAt: DateTime.now().subtract(const Duration(days: 2)),
-      isPinned: true,
-      category: 'Work',
-      priority: 'High',
-    ),
-    Note(
-      id: '2',
-      title: 'Training Schedule',
-      content:
-          'Combat training at 0800 hours, Equipment maintenance at 1400 hours',
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      isPinned: false,
-      category: 'Training',
-      priority: 'Medium',
-    ),
-    Note(
-      id: '3',
-      title: 'Personal Reminder',
-      content: 'Call family tonight after duty hours',
-      createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-      isPinned: false,
-      category: 'Personal',
-      priority: 'Low',
-    ),
+    // Note(
+    //   id: '1',
+    //   title: 'Weekly Report',
+    //   content: 'Prepare weekly operational report for Monday meeting',
+    //   createdAt: DateTime.now().subtract(const Duration(days: 2)),
+    //   isPinned: true,
+    //   category: 'Work',
+    //   priority: 'High',
+    // ),
+    // Note(
+    //   id: '2',
+    //   title: 'Training Schedule',
+    //   content:
+    //       'Combat training at 0800 hours, Equipment maintenance at 1400 hours',
+    //   createdAt: DateTime.now().subtract(const Duration(days: 1)),
+    //   isPinned: false,
+    //   category: 'Training',
+    //   priority: 'Medium',
+    // ),
+    // Note(
+    //   id: '3',
+    //   title: 'Personal Reminder',
+    //   content: 'Call family tonight after duty hours',
+    //   createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+    //   isPinned: false,
+    //   category: 'Personal',
+    //   priority: 'Low',
+    // ),
   ];
 
   String searchQuery = '';
   String selectedFilter = 'All';
   TextEditingController searchController = TextEditingController();
   bool isSearching = false;
+  bool isLoading = false;
+  Future<void> fetchQnotes() async {
+    setState(() {
+      isLoading = true;
+    });
+    try {
+      final docRef = await FirebaseFirestore.instance
+          .collection('user')
+          .doc(UserData.uid)
+          .collection('qnotes')
+          .get();
+
+      final qnotesList = docRef.docs.map((doc) {
+        final data = doc.data(); // Ensure data is cast to Map<String, dynamic>
+        return Note(
+          id: data['id'] as String? ?? '', // Default to an empty string if null
+          title: data['title'] as String? ?? 'Untitled',
+          content: data['content'] as String? ?? '',
+          createdAt: DateTime.parse(data['createdAt'] as String),
+          isPinned: data['isPinned'] as bool? ?? false,
+          category: data['category'] as String? ?? 'Uncategorized',
+          priority: data['priority'] as String? ?? 'Normal',
+        );
+      }).toList();
+      notes.addAll(qnotesList);
+      setState(() {});
+    } catch (e) {
+      print("error: ${e.toString()}");
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> storeQnotes(Note note) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('user')
+          .doc(UserData.uid)
+          .collection('qnotes')
+          .add(note.toMap());
+
+      print('qnotes stored!');
+    } catch (e) {
+      print("error: ${e.toString()}");
+    }
+  }
+
+  Future<void> updateQnote(Note note) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('user')
+          .doc(UserData.uid)
+          .collection('qnotes')
+          .where('id', isEqualTo: note.id)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        await querySnapshot.docs.first.reference.update({
+          'title': note.title, // fields you want to update
+          'content': note.content,
+          'category': note.category,
+          'priority': note.priority,
+        });
+      }
+      print('qnotes updated!');
+    } catch (e) {
+      print("error: ${e.toString()}");
+    }
+  }
+
+  Future<void> deleteQnote(Note note) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('user')
+          .doc(UserData.uid)
+          .collection('qnotes')
+          .where('id', isEqualTo: note.id)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        await querySnapshot.docs.first.reference.delete();
+      }
+      print('qnotes deleted!');
+    } catch (e) {
+      print("error: ${e.toString()}");
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await fetchQnotes();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -168,17 +268,24 @@ class QuickNotesPageState extends State<QuickNotesPage> {
               ),
 
             // Notes List
-            Expanded(
-              child: filteredNotes.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: filteredNotes.length,
-                      itemBuilder: (context, index) {
-                        return _buildEnhancedNoteCard(filteredNotes[index]);
-                      },
-                    ),
-            ),
+            isLoading
+                ? const Padding(
+                    padding: EdgeInsets.only(top: 30),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : Expanded(
+                    child: filteredNotes.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: filteredNotes.length,
+                            itemBuilder: (context, index) {
+                              return _buildEnhancedNoteCard(
+                                filteredNotes[index],
+                              );
+                            },
+                          ),
+                  ),
           ],
         ),
       ),
@@ -394,7 +501,7 @@ class QuickNotesPageState extends State<QuickNotesPage> {
                     _buildPriorityBadge(note.priority),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () => _togglePin(note),
+                      onTap: () async => await _togglePin(note),
                       child: Icon(
                         note.isPinned
                             ? Icons.push_pin
@@ -679,20 +786,19 @@ class QuickNotesPageState extends State<QuickNotesPage> {
   }
 
   void _duplicateNote(Note note) {
+    final cnote = Note(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: '${note.title} (Copy)',
+      content: note.content,
+      createdAt: DateTime.now(),
+      isPinned: false,
+      category: note.category,
+      priority: note.priority,
+    );
     setState(() {
-      notes.add(
-        Note(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          title: '${note.title} (Copy)',
-          content: note.content,
-          createdAt: DateTime.now(),
-          isPinned: false,
-          category: note.category,
-          priority: note.priority,
-        ),
-      );
+      notes.add(cnote);
     });
-
+    storeQnotes(cnote);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Note duplicated successfully!'),
@@ -701,18 +807,33 @@ class QuickNotesPageState extends State<QuickNotesPage> {
     );
   }
 
-  void _togglePin(Note note) {
+  Future<void> _togglePin(Note note) async {
     setState(() {
       note.isPinned = !note.isPinned;
     });
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('user')
+          .doc(UserData.uid)
+          .collection('qnotes')
+          .where('id', isEqualTo: note.id)
+          .get();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(note.isPinned ? 'Note pinned' : 'Note unpinned'),
-        backgroundColor: Colors.green[800],
-        duration: const Duration(seconds: 1),
-      ),
-    );
+      if (querySnapshot.docs.isNotEmpty) {
+        await querySnapshot.docs.first.reference.update({
+          'isPinned': note.isPinned,
+        });
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(note.isPinned ? 'Note pinned' : 'Note unpinned'),
+          backgroundColor: Colors.green[800],
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    } catch (e) {
+      print('error: ${e.toString()}');
+    }
   }
 
   void _showEnhancedAddDialog() {
@@ -764,58 +885,57 @@ class QuickNotesPageState extends State<QuickNotesPage> {
                       maxLines: 4,
                     ),
                     const SizedBox(height: 16),
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: selectedCategory,
-                            decoration: InputDecoration(
-                              labelText: 'Category',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              prefixIcon: const Icon(Icons.category),
+                        DropdownButtonFormField<String>(
+                          value: selectedCategory,
+                          decoration: InputDecoration(
+                            labelText: 'Category',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            items: ['Work', 'Training', 'Personal', 'Other']
-                                .map(
-                                  (category) => DropdownMenuItem(
-                                    value: category,
-                                    child: Text(category),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              setDialogState(() {
-                                selectedCategory = value!;
-                              });
-                            },
+                            prefixIcon: const Icon(Icons.category),
                           ),
+                          items: ['Work', 'Training', 'Personal', 'Other']
+                              .map(
+                                (category) => DropdownMenuItem(
+                                  value: category,
+                                  child: Text(category),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              selectedCategory = value!;
+                            });
+                          },
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: selectedPriority,
-                            decoration: InputDecoration(
-                              labelText: 'Priority',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              prefixIcon: const Icon(Icons.priority_high),
+                        const SizedBox(
+                          height: 16,
+                        ), // Add spacing between the dropdowns
+                        DropdownButtonFormField<String>(
+                          value: selectedPriority,
+                          decoration: InputDecoration(
+                            labelText: 'Priority',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            items: ['High', 'Medium', 'Low']
-                                .map(
-                                  (priority) => DropdownMenuItem(
-                                    value: priority,
-                                    child: Text(priority),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              setDialogState(() {
-                                selectedPriority = value!;
-                              });
-                            },
+                            prefixIcon: const Icon(Icons.priority_high),
                           ),
+                          items: ['High', 'Medium', 'Low']
+                              .map(
+                                (priority) => DropdownMenuItem(
+                                  value: priority,
+                                  child: Text(priority),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              selectedPriority = value!;
+                            });
+                          },
                         ),
                       ],
                     ),
@@ -832,18 +952,17 @@ class QuickNotesPageState extends State<QuickNotesPage> {
                     if (titleController.text.isNotEmpty &&
                         contentController.text.isNotEmpty) {
                       setState(() {
-                        notes.add(
-                          Note(
-                            id: DateTime.now().millisecondsSinceEpoch
-                                .toString(),
-                            title: titleController.text,
-                            content: contentController.text,
-                            createdAt: DateTime.now(),
-                            isPinned: false,
-                            category: selectedCategory,
-                            priority: selectedPriority,
-                          ),
+                        final note = Note(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          title: titleController.text,
+                          content: contentController.text,
+                          createdAt: DateTime.now(),
+                          isPinned: false,
+                          category: selectedCategory,
+                          priority: selectedPriority,
                         );
+                        notes.add(note);
+                        storeQnotes(note);
                       });
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -923,58 +1042,57 @@ class QuickNotesPageState extends State<QuickNotesPage> {
                       maxLines: 4,
                     ),
                     const SizedBox(height: 16),
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: selectedCategory,
-                            decoration: InputDecoration(
-                              labelText: 'Category',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              prefixIcon: const Icon(Icons.category),
+                        DropdownButtonFormField<String>(
+                          value: selectedCategory,
+                          decoration: InputDecoration(
+                            labelText: 'Category',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            items: ['Work', 'Training', 'Personal', 'Other']
-                                .map(
-                                  (category) => DropdownMenuItem(
-                                    value: category,
-                                    child: Text(category),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              setDialogState(() {
-                                selectedCategory = value!;
-                              });
-                            },
+                            prefixIcon: const Icon(Icons.category),
                           ),
+                          items: ['Work', 'Training', 'Personal', 'Other']
+                              .map(
+                                (category) => DropdownMenuItem(
+                                  value: category,
+                                  child: Text(category),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              selectedCategory = value!;
+                            });
+                          },
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: selectedPriority,
-                            decoration: InputDecoration(
-                              labelText: 'Priority',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              prefixIcon: const Icon(Icons.priority_high),
+                        const SizedBox(
+                          height: 16,
+                        ), // Add spacing between the dropdowns
+                        DropdownButtonFormField<String>(
+                          value: selectedPriority,
+                          decoration: InputDecoration(
+                            labelText: 'Priority',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            items: ['High', 'Medium', 'Low']
-                                .map(
-                                  (priority) => DropdownMenuItem(
-                                    value: priority,
-                                    child: Text(priority),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              setDialogState(() {
-                                selectedPriority = value!;
-                              });
-                            },
+                            prefixIcon: const Icon(Icons.priority_high),
                           ),
+                          items: ['High', 'Medium', 'Low']
+                              .map(
+                                (priority) => DropdownMenuItem(
+                                  value: priority,
+                                  child: Text(priority),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              selectedPriority = value!;
+                            });
+                          },
                         ),
                       ],
                     ),
@@ -987,7 +1105,7 @@ class QuickNotesPageState extends State<QuickNotesPage> {
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (titleController.text.isNotEmpty &&
                         contentController.text.isNotEmpty) {
                       setState(() {
@@ -996,6 +1114,7 @@ class QuickNotesPageState extends State<QuickNotesPage> {
                         note.category = selectedCategory;
                         note.priority = selectedPriority;
                       });
+                      await updateQnote(note);
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -1161,10 +1280,11 @@ class QuickNotesPageState extends State<QuickNotesPage> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 setState(() {
                   notes.removeWhere((n) => n.id == note.id);
                 });
+                await deleteQnote(note);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -1209,24 +1329,4 @@ class QuickNotesPageState extends State<QuickNotesPage> {
       return 'Just now';
     }
   }
-}
-
-class Note {
-  String id;
-  String title;
-  String content;
-  DateTime createdAt;
-  bool isPinned;
-  String category;
-  String priority;
-
-  Note({
-    required this.id,
-    required this.title,
-    required this.content,
-    required this.createdAt,
-    required this.isPinned,
-    required this.category,
-    required this.priority,
-  });
 }

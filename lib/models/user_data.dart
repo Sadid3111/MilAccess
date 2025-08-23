@@ -1,3 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
 class UserData {
   static String status = 'unauthenticated';
   static String name = '';
@@ -12,4 +15,10 @@ class UserData {
     role = '';
     uid = '';
   }
+}
+
+void signOut(BuildContext context) async {
+  await FirebaseAuth.instance.signOut();
+  UserData.reset();
+  Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
 }

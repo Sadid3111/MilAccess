@@ -30,7 +30,9 @@ class _PendingRequestsState extends State<PendingRequests> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await fetchPendingReqs(context);
+      if (mounted) {
+        await fetchPendingReqs(context);
+      }
     });
   }
 
@@ -48,8 +50,10 @@ class _PendingRequestsState extends State<PendingRequests> {
             .toList();
       });
     } on FirebaseAuthException catch (e) {
+      if (!context.mounted) return;
       context.showErrorSnackBar(message: e.toString());
     } catch (e) {
+      if (!context.mounted) return;
       context.showErrorSnackBar(message: e.toString());
     }
   }
@@ -104,7 +108,7 @@ class _PendingRequestsState extends State<PendingRequests> {
       setState(() {
         request['status'] = 'accepted';
       });
-
+      if (!mounted) return;
       _showMessageBox(
         context,
         'Request Accepted',
@@ -125,7 +129,7 @@ class _PendingRequestsState extends State<PendingRequests> {
       setState(() {
         request['status'] = 'rejected';
       });
-
+      if (!mounted) return;
       _showMessageBox(
         context,
         'Request Rejected',
@@ -186,14 +190,14 @@ class _PendingRequestsState extends State<PendingRequests> {
       backgroundColor: const Color(0xFFA8D5A2),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: const Icon(Icons.menu, color: Colors.black),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 16.0),
-            child: Icon(Icons.notifications_none, color: Colors.black),
-          ),
-        ],
+        // elevation: 0,
+        // leading: const Icon(Icons.menu, color: Colors.black),
+        // actions: const [
+        //   Padding(
+        //     padding: EdgeInsets.only(right: 16.0),
+        //     child: Icon(Icons.notifications_none, color: Colors.black),
+        //   ),
+        // ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -215,75 +219,80 @@ class _PendingRequestsState extends State<PendingRequests> {
               child: SearchBarWidget(hintText: 'Search...'),
             ),
             const SizedBox(height: 10),
-            ListView.builder(
-              shrinkWrap: true, // Important for nested ListView
-              physics:
-                  const NeverScrollableScrollPhysics(), // Disable inner scrolling
-              itemCount: pendUserData.length,
-              itemBuilder: (context, index) {
-                final request = pendUserData[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                    vertical: 8.0,
-                    horizontal: 16.0,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15.0),
-                  ),
-                  elevation: 3,
-                  child: ListTile(
-                    leading: Icon(
-                      _getStatusIcon(request['status']),
-                      color: _getStatusColor(request['status']),
-                    ),
-                    title: Text(
-                      request['name'],
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        decoration: request['status'] == 'rejected'
-                            ? TextDecoration.lineThrough
-                            : TextDecoration.none,
-                        color: request['status'] == 'rejected'
-                            ? Colors.grey
-                            : Colors.black,
-                      ),
-                    ),
-                    subtitle: Text(
-                      request['contact'],
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.check_circle,
-                            color: request['status'] == 'accepted'
-                                ? Colors.green
-                                : Colors.grey,
-                          ),
-                          onPressed: request['status'] == 'pending'
-                              ? () => _acceptRequest(request)
-                              : null, // Disable if already acted upon
+            pendUserData.isEmpty
+                ? const Center(child: Text('No Pending requests'))
+                : ListView.builder(
+                    shrinkWrap: true, // Important for nested ListView
+                    physics:
+                        const NeverScrollableScrollPhysics(), // Disable inner scrolling
+                    itemCount: pendUserData.length,
+                    itemBuilder: (context, index) {
+                      final request = pendUserData[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          vertical: 8.0,
+                          horizontal: 16.0,
                         ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.cancel,
-                            color: request['status'] == 'rejected'
-                                ? Colors.red
-                                : Colors.grey,
-                          ),
-                          onPressed: request['status'] == 'pending'
-                              ? () => _rejectRequest(request)
-                              : null, // Disable if already acted upon
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15.0),
                         ),
-                      ],
-                    ),
+                        elevation: 3,
+                        child: ListTile(
+                          leading: Icon(
+                            _getStatusIcon(request['status']),
+                            color: _getStatusColor(request['status']),
+                          ),
+                          title: Text(
+                            request['name'],
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              decoration: request['status'] == 'rejected'
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
+                              color: request['status'] == 'rejected'
+                                  ? Colors.grey
+                                  : Colors.black,
+                            ),
+                          ),
+                          subtitle: Text(
+                            request['contact'],
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 13,
+                            ),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.check_circle,
+                                  color: request['status'] == 'accepted'
+                                      ? Colors.green
+                                      : Colors.grey,
+                                ),
+                                onPressed: request['status'] == 'pending'
+                                    ? () => _acceptRequest(request)
+                                    : null, // Disable if already acted upon
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.cancel,
+                                  color: request['status'] == 'rejected'
+                                      ? Colors.red
+                                      : Colors.grey,
+                                ),
+                                onPressed: request['status'] == 'pending'
+                                    ? () => _rejectRequest(request)
+                                    : null, // Disable if already acted upon
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
             const SizedBox(height: 20),
           ],
         ),

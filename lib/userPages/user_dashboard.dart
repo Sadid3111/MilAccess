@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/models/search_item.dart';
+import 'package:flutter_application_1/models/user_data.dart';
 import 'package:flutter_application_1/userPages/chat_contact.dart';
 import 'report_generation_page.dart';
 import 'exam_module_page.dart';
@@ -7,7 +9,7 @@ import 'contact_info_page.dart';
 import 'pending_requests_page.dart';
 import '../unusedPages/chat_page.dart';
 import '../ahqPages/profile_page.dart';
-import 'archive_database_page.dart';
+import 'archive_database.dart';
 import 'todo_page.dart';
 import 'training_calender_page.dart';
 import 'report_incident_page.dart';
@@ -219,141 +221,228 @@ class UserDashboardPageState extends State<UserDashboardPage> {
     });
   }
 
-  void _showNotificationPanel(BuildContext context) {
-    showDialog(
+  // void _showNotificationPanel(BuildContext context) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (BuildContext context) {
+  //       return Dialog(
+  //         shape: RoundedRectangleBorder(
+  //           borderRadius: BorderRadius.circular(16),
+  //         ),
+  //         child: ConstrainedBox(
+  //           constraints: BoxConstraints(
+  //             maxHeight: MediaQuery.of(context).size.height * 0.7,
+  //             maxWidth: MediaQuery.of(context).size.width * 0.9,
+  //           ),
+  //           child: SingleChildScrollView(
+  //             padding: const EdgeInsets.all(20),
+  //             child: Column(
+  //               mainAxisSize: MainAxisSize.min,
+  //               children: [
+  //                 Row(
+  //                   children: [
+  //                     Icon(Icons.notifications, color: Colors.green[800]),
+  //                     const SizedBox(width: 8),
+  //                     const Text(
+  //                       'Notifications',
+  //                       style: TextStyle(
+  //                         fontSize: 18,
+  //                         fontWeight: FontWeight.bold,
+  //                       ),
+  //                     ),
+  //                   ],
+  //                 ),
+  //                 const SizedBox(height: 20),
+  //                 _buildNotificationItem(
+  //                   'Pending Request',
+  //                   'You have 3 pending leave requests to review',
+  //                   Icons.pending_actions,
+  //                   Colors.orange,
+  //                 ),
+  //                 _buildNotificationItem(
+  //                   'Training Reminder',
+  //                   'Safety training scheduled for tomorrow at 09:00',
+  //                   Icons.school,
+  //                   Colors.blue,
+  //                 ),
+  //                 _buildNotificationItem(
+  //                   'System Alert',
+  //                   'Monthly report submission deadline: 2 days left',
+  //                   Icons.warning,
+  //                   Colors.red,
+  //                 ),
+  //                 _buildNotificationItem(
+  //                   'New Message',
+  //                   'You have 5 unread messages in chat',
+  //                   Icons.message,
+  //                   Colors.green,
+  //                 ),
+  //                 _buildNotificationItem(
+  //                   'Update Available',
+  //                   'New app version available for download',
+  //                   Icons.system_update,
+  //                   Colors.purple,
+  //                 ),
+  //                 const SizedBox(height: 20),
+  //                 Row(
+  //                   mainAxisAlignment: MainAxisAlignment.end,
+  //                   children: [
+  //                     TextButton(
+  //                       onPressed: () => Navigator.of(context).pop(),
+  //                       child: const Text('Close'),
+  //                     ),
+  //                     ElevatedButton(
+  //                       onPressed: () {
+  //                         Navigator.of(context).pop();
+  //                       },
+  //                       style: ElevatedButton.styleFrom(
+  //                         backgroundColor: Colors.green[800],
+  //                       ),
+  //                       child: const Text('View All'),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
+  int notifCount = 0;
+  final List<String> notifications = [];
+
+  void showNotificationPanel(BuildContext context) {
+    showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.7,
-              maxWidth: MediaQuery.of(context).size.width * 0.9,
-            ),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.notifications, color: Colors.green[800]),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Notifications',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  _buildNotificationItem(
-                    'Pending Request',
-                    'You have 3 pending leave requests to review',
-                    Icons.pending_actions,
-                    Colors.orange,
-                  ),
-                  _buildNotificationItem(
-                    'Training Reminder',
-                    'Safety training scheduled for tomorrow at 09:00',
-                    Icons.school,
-                    Colors.blue,
-                  ),
-                  _buildNotificationItem(
-                    'System Alert',
-                    'Monthly report submission deadline: 2 days left',
-                    Icons.warning,
-                    Colors.red,
-                  ),
-                  _buildNotificationItem(
-                    'New Message',
-                    'You have 5 unread messages in chat',
-                    Icons.message,
-                    Colors.green,
-                  ),
-                  _buildNotificationItem(
-                    'Update Available',
-                    'New app version available for download',
-                    Icons.system_update,
-                    Colors.purple,
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Close'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[800],
-                        ),
-                        child: const Text('View All'),
-                      ),
-                    ],
-                  ),
-                ],
+        return Container(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Notifications",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-            ),
+              const Divider(),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: notifications.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(notifications[index]),
+                      leading: const Icon(Icons.notification_important),
+                      onTap: () {
+                        // Handle notification tap
+                        print("Tapped on: ${notifications[index]}");
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildNotificationItem(
-    String title,
-    String description,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border(left: BorderSide(color: color, width: 4)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _buildNotificationItem(
+  //   String title,
+  //   String description,
+  //   IconData icon,
+  //   Color color,
+  // ) {
+  //   return Container(
+  //     margin: const EdgeInsets.only(bottom: 12),
+  //     padding: const EdgeInsets.all(12),
+  //     decoration: BoxDecoration(
+  //       color: color.withOpacity(0.1),
+  //       borderRadius: BorderRadius.circular(8),
+  //       border: Border(left: BorderSide(color: color, width: 4)),
+  //     ),
+  //     child: Row(
+  //       children: [
+  //         Icon(icon, color: color, size: 24),
+  //         const SizedBox(width: 12),
+  //         Expanded(
+  //           child: Column(
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             children: [
+  //               Text(
+  //                 title,
+  //                 style: const TextStyle(
+  //                   fontWeight: FontWeight.bold,
+  //                   fontSize: 14,
+  //                 ),
+  //               ),
+  //               const SizedBox(height: 4),
+  //               Text(
+  //                 description,
+  //                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(
+        backgroundColor: Colors.green,
+        elevation: 0, // No shadow
+        centerTitle: true,
+        actions: [
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.notifications,
+                  color: Colors.white,
+                  size: 30,
+                ),
+                onPressed: () {
+                  setState(() {
+                    notifCount = 0;
+                  });
+                  showNotificationPanel(context); // Open the modal bottom sheet
+                },
+              ),
+              notifCount > 0
+                  ? Positioned(
+                      right: 8, // Adjust position of the badge
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          notifCount
+                              .toString(), // Replace with your dynamic notification count
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ],
+          ),
+        ],
+        // Removed shape property from AppBar to allow seamless merge with the container below
+      ),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -373,17 +462,17 @@ class UserDashboardPageState extends State<UserDashboardPage> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Welcome, User!',
-                    style: TextStyle(
+                  Text(
+                    'Welcome, ${UserData.name}!',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const Text(
-                    'user@military.gov',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  Text(
+                    UserData.email,
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
@@ -469,285 +558,233 @@ class UserDashboardPageState extends State<UserDashboardPage> {
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Logout', style: TextStyle(color: Colors.red)),
-              onTap: () => Navigator.pop(context),
+              onTap: () => signOut(context),
             ),
           ],
         ),
       ),
-      body: Builder(
-        builder: (BuildContext scaffoldContext) {
-          return Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Theme.of(context).scaffoldBackgroundColor,
-                  Theme.of(context).scaffoldBackgroundColor,
-                ],
+      body: SingleChildScrollView(
+        child: Builder(
+          builder: (BuildContext scaffoldContext) {
+            return Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Theme.of(context).scaffoldBackgroundColor,
+                    Theme.of(context).scaffoldBackgroundColor,
+                  ],
+                ),
               ),
-            ),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            Scaffold.of(scaffoldContext).openDrawer();
-                          },
-                          child: Icon(
-                            Icons.menu,
-                            color: Theme.of(context).iconTheme.color,
-                            size: 28,
-                          ),
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20.0),
+                      child: Text(
+                        'Welcome, ${UserData.name.trim()}!',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                         ),
-                        GestureDetector(
-                          onTap: () => _showNotificationPanel(context),
-                          child: Stack(
-                            children: [
-                              Icon(
-                                Icons.notifications,
-                                color: Theme.of(context).iconTheme.color,
-                                size: 28,
-                              ),
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 16,
-                                    minHeight: 16,
-                                  ),
-                                  child: const Text(
-                                    '5',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Welcome Text
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20.0),
-                    child: Text(
-                      'Welcome, User!',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
-                  ),
 
-                  // Enhanced Search Bar
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    child: Column(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(25),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: TextField(
-                            controller: searchController,
-                            focusNode: searchFocusNode,
-                            onSubmitted: _performSearch,
-                            decoration: InputDecoration(
-                              hintText:
-                                  'Search features, contacts, or actions...',
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 15,
-                              ),
-                              suffixIcon: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (searchQuery.isNotEmpty)
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.clear,
-                                        color: Colors.grey,
-                                      ),
-                                      onPressed: _clearSearch,
-                                    ),
-                                  AnimatedRotation(
-                                    turns: isSearchActive ? 0.5 : 0.0,
-                                    duration: const Duration(milliseconds: 300),
-                                    child: const Icon(
-                                      Icons.search,
-                                      color: Colors.green,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Search Results or Recent Searches
-                        if (isSearchActive)
+                    // Enhanced Search Bar
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Column(
+                        children: [
                           Container(
-                            margin: const EdgeInsets.only(top: 8),
                             decoration: BoxDecoration(
                               color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(25),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
                                 ),
                               ],
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (searchQuery.isEmpty) ...[
-                                  // Recent Searches
-                                  if (recentSearches.isNotEmpty) ...[
-                                    Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Text(
-                                        'Recent Searches',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey[600],
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                    ...recentSearches.map(
-                                      (search) => ListTile(
-                                        leading: const Icon(
-                                          Icons.history,
+                            child: TextField(
+                              controller: searchController,
+                              focusNode: searchFocusNode,
+                              onSubmitted: _performSearch,
+                              decoration: InputDecoration(
+                                hintText:
+                                    'Search features, contacts, or actions...',
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 15,
+                                ),
+                                suffixIcon: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (searchQuery.isNotEmpty)
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.clear,
                                           color: Colors.grey,
                                         ),
-                                        title: Text(search),
-                                        onTap: () {
-                                          searchController.text = search;
-                                          setState(() {
-                                            searchQuery = search;
-                                          });
-                                        },
+                                        onPressed: _clearSearch,
+                                      ),
+                                    AnimatedRotation(
+                                      turns: isSearchActive ? 0.5 : 0.0,
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      child: const Icon(
+                                        Icons.search,
+                                        color: Colors.green,
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                   ],
-                                ] else ...[
-                                  // Search Results
-                                  if (filteredSearchResults.isNotEmpty) ...[
-                                    Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Text(
-                                        'Search Results (${filteredSearchResults.length})',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey[600],
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                    ...filteredSearchResults.map(
-                                      (item) => ListTile(
-                                        leading: Icon(
-                                          item.icon,
-                                          color: Colors.green[800],
-                                        ),
-                                        title: Text(item.title),
-                                        subtitle: Text(item.category),
-                                        trailing: const Icon(
-                                          Icons.arrow_forward_ios,
-                                          size: 16,
-                                        ),
-                                        onTap: () async {
-                                          _performSearch(searchQuery);
-                                          searchController.clear();
-                                          setState(() {
-                                            searchQuery = '';
-                                            isSearchActive = false;
-                                          });
-                                          searchFocusNode.unfocus();
-
-                                          // Ensure navigation happens after UI update
-                                          await Future.delayed(
-                                            const Duration(milliseconds: 50),
-                                          );
-                                          if (context.mounted) {
-                                            item.onTap(context);
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ] else ...[
-                                    Padding(
-                                      padding: const EdgeInsets.all(32),
-                                      child: Column(
-                                        children: [
-                                          const Icon(
-                                            Icons.search_off,
-                                            size: 48,
-                                            color: Colors.grey,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Text(
-                                            'No results found for "$searchQuery"',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ],
+                                ),
+                              ),
                             ),
                           ),
-                      ],
+
+                          // Search Results or Recent Searches
+                          if (isSearchActive)
+                            Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).cardColor,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (searchQuery.isEmpty) ...[
+                                    // Recent Searches
+                                    if (recentSearches.isNotEmpty) ...[
+                                      Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Text(
+                                          'Recent Searches',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.grey[600],
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                      ...recentSearches.map(
+                                        (search) => ListTile(
+                                          leading: const Icon(
+                                            Icons.history,
+                                            color: Colors.grey,
+                                          ),
+                                          title: Text(search),
+                                          onTap: () {
+                                            searchController.text = search;
+                                            setState(() {
+                                              searchQuery = search;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ] else ...[
+                                    // Search Results
+                                    if (filteredSearchResults.isNotEmpty) ...[
+                                      Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Text(
+                                          'Search Results (${filteredSearchResults.length})',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.grey[600],
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                      ...filteredSearchResults.map(
+                                        (item) => ListTile(
+                                          leading: Icon(
+                                            item.icon,
+                                            color: Colors.green[800],
+                                          ),
+                                          title: Text(item.title),
+                                          subtitle: Text(item.category),
+                                          trailing: const Icon(
+                                            Icons.arrow_forward_ios,
+                                            size: 16,
+                                          ),
+                                          onTap: () async {
+                                            _performSearch(searchQuery);
+                                            searchController.clear();
+                                            setState(() {
+                                              searchQuery = '';
+                                              isSearchActive = false;
+                                            });
+                                            searchFocusNode.unfocus();
+
+                                            // Ensure navigation happens after UI update
+                                            await Future.delayed(
+                                              const Duration(milliseconds: 50),
+                                            );
+                                            if (context.mounted) {
+                                              item.onTap(context);
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      Padding(
+                                        padding: const EdgeInsets.all(32),
+                                        child: Column(
+                                          children: [
+                                            const Icon(
+                                              Icons.search_off,
+                                              size: 48,
+                                              color: Colors.grey,
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              'No results found for "$searchQuery"',
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(height: 30),
+                    const SizedBox(height: 30),
 
-                  // Grid of Cards (only show when search is not active)
-                  if (!isSearchActive)
-                    Expanded(
-                      child: Padding(
+                    // Grid of Cards (only show when search is not active)
+                    if (!isSearchActive)
+                      Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20.0),
                         child: GridView.count(
                           crossAxisCount: 2,
                           crossAxisSpacing: 15,
                           mainAxisSpacing: 15,
                           childAspectRatio: 1.0,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
                           children: [
                             GestureDetector(
                               onTap: () {
@@ -894,14 +931,14 @@ class UserDashboardPageState extends State<UserDashboardPage> {
                           ],
                         ),
                       ),
-                    ),
 
-                  const SizedBox(height: 20),
-                ],
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -945,20 +982,4 @@ class UserDashboardPageState extends State<UserDashboardPage> {
       ),
     );
   }
-}
-
-class SearchItem {
-  final String title;
-  final String category;
-  final List<String> keywords;
-  final IconData icon;
-  final Function(BuildContext) onTap;
-
-  SearchItem({
-    required this.title,
-    required this.category,
-    required this.keywords,
-    required this.icon,
-    required this.onTap,
-  });
 }

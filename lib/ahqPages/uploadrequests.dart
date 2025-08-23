@@ -1,159 +1,90 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'pdf_viewer.dart'; // Make sure this file exists
+import 'package:flutter_application_1/functions/functions.dart';
+import 'package:flutter_application_1/models/document_item.dart';
 
-// void main() {
-//   runApp(const UploadRequests());
-// }
-
-class UploadRequests extends StatelessWidget {
+class UploadRequests extends StatefulWidget {
   const UploadRequests({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Pending Upload Requests - AHQ',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-      ),
-      home: const AdminDashboard(),
-    );
-  }
+  State<UploadRequests> createState() => _UploadRequestsState();
 }
 
-class AdminDashboard extends StatefulWidget {
-  const AdminDashboard({super.key});
+class _UploadRequestsState extends State<UploadRequests> {
+  List<Map<String, dynamic>> pendingFiles = [];
+
+  Future<void> fetchPendingFiles() async {
+    try {
+      // Get a reference to the Firestore instance
+      final firestore = FirebaseFirestore.instance;
+
+      // Query the 'files' collection where the status is 'Pending'
+      final querySnapshot = await firestore
+          .collection('files')
+          .where('status', isEqualTo: 'Pending')
+          .get();
+
+      // Process the fetched documents
+      pendingFiles = querySnapshot.docs.map((doc) {
+        return {'id': doc.id, ...doc.data()};
+      }).toList();
+
+      setState(() {});
+
+      // Print or use the pending files
+      print('Pending Files: $pendingFiles');
+    } catch (e) {
+      // Handle errors
+      print('Error fetching pending files: $e');
+    }
+  }
 
   @override
-  State<AdminDashboard> createState() => _AdminDashboardState();
-}
-
-class _AdminDashboardState extends State<AdminDashboard> {
-  int _selectedIndex = 0;
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await fetchPendingFiles();
     });
-  }
-
-  void _openDocument(String title) {
-    final sanitizedTitle = title.replaceAll(' ', '_');
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            PDFViewerScreen(pdfAssetPath: 'assets/$sanitizedTitle.pdf'),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFA8D5A2),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: const Icon(Icons.menu, color: Colors.black),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 16.0),
-            child: Icon(Icons.notifications_none, color: Colors.black),
-          ),
-        ],
-      ),
+      appBar: AppBar(backgroundColor: Colors.transparent),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Center(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Pending Upload Requests',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  const _SearchBar(),
-                  const SizedBox(height: 24),
-                  ...[
-                        'JSSDM Edition 2025',
-                        'JSSDM Edition 2024',
-                        'JSSDM Edition 2023',
-                        'JSSDM Edition 2022',
-                        'JSSDM Edition 2021',
-                        'AR(R)',
-                        'AR(I)',
-                        'ADR',
-                        'Signal Officers Handbook',
-                        'ICIB',
-                        'IPIB',
-                        'MBML',
-                        'Notes On MBML',
-                      ]
-                      .map(
-                        (title) => DashboardCard(
-                          title: title,
-                          onAccept: _openDocument,
-                        ),
-                      )
-                      .toList(),
-                  const SizedBox(height: 24),
-                ],
-              ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: RefreshIndicator(
+            onRefresh: fetchPendingFiles,
+            child: ListView(
+              children: [
+                const SizedBox(height: 24),
+                const Text(
+                  'Pending Upload Requests',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                const _SearchBar(),
+                const SizedBox(height: 24),
+                ...pendingFiles.map((pendingFile) {
+                  return DashboardCard(
+                    document: DocumentItem(
+                      id: pendingFile['id'],
+                      title: pendingFile['title'],
+                      ownerId: pendingFile['ownerId'],
+                      url: pendingFile['url'],
+                      status: pendingFile['status'],
+                    ),
+                  );
+                }).toList(),
+                const SizedBox(height: 24),
+              ],
             ),
           ),
         ),
       ),
-      // bottomNavigationBar: ClipRRect(
-      //   borderRadius: BorderRadius.circular(24),
-      //   child: BottomNavigationBar(
-      //     currentIndex: _selectedIndex,
-      //     onTap: _onItemTapped,
-      //     selectedItemColor: const Color(0xFF006400),
-      //     unselectedItemColor: Colors.grey,
-      //     backgroundColor: Colors.transparent,
-      //     type: BottomNavigationBarType.fixed,
-      //     elevation: 0,
-      //     selectedFontSize: 12,
-      //     unselectedFontSize: 12,
-      //     items: const [
-      //       BottomNavigationBarItem(
-      //         icon: Padding(
-      //           padding: EdgeInsets.only(top: 6),
-      //           child: Icon(Icons.home),
-      //         ),
-      //         label: 'Home',
-      //       ),
-      //       BottomNavigationBarItem(
-      //         icon: Padding(
-      //           padding: EdgeInsets.only(top: 6),
-      //           child: Icon(Icons.contacts),
-      //         ),
-      //         label: 'Contacts',
-      //       ),
-      //       BottomNavigationBarItem(
-      //         icon: Padding(
-      //           padding: EdgeInsets.only(top: 6),
-      //           child: Icon(Icons.pending_actions),
-      //         ),
-      //         label: 'Pending',
-      //       ),
-      //       BottomNavigationBarItem(
-      //         icon: Padding(
-      //           padding: EdgeInsets.only(top: 6),
-      //           child: Icon(Icons.person),
-      //         ),
-      //         label: 'Profile',
-      //       ),
-      //     ],
-      //   ),
-      // ),
     );
   }
 }
@@ -190,10 +121,9 @@ class _SearchBar extends StatelessWidget {
 }
 
 class DashboardCard extends StatefulWidget {
-  final String title;
-  final void Function(String) onAccept;
+  final DocumentItem document;
 
-  const DashboardCard({super.key, required this.title, required this.onAccept});
+  const DashboardCard({super.key, required this.document});
 
   @override
   State<DashboardCard> createState() => _DashboardCardState();
@@ -206,6 +136,43 @@ class _DashboardCardState extends State<DashboardCard> {
     setState(() {
       _showOptions = !_showOptions;
     });
+  }
+
+  Future<String?> _showRemarksDialog(BuildContext context) async {
+    TextEditingController remarksController = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Remarks'),
+          content: TextField(
+            controller: remarksController,
+            decoration: const InputDecoration(
+              hintText: 'Enter remarks here...',
+            ),
+            maxLines: 3,
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(
+                  context,
+                ).pop(); // Close dialog without returning remarks
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(
+                  context,
+                ).pop(remarksController.text); // Return entered remarks
+              },
+              child: const Text('Submit'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -228,24 +195,33 @@ class _DashboardCardState extends State<DashboardCard> {
           ),
           child: Row(
             children: [
-              const CircleAvatar(
-                backgroundColor: Color(0xFF006400),
-                child: Icon(Icons.article, color: Colors.white),
+              CircleAvatar(
+                backgroundColor: const Color(0xFF006400),
+                child: widget.document.status == 'Pending'
+                    ? const Icon(Icons.article, color: Colors.white)
+                    : (widget.document.status == 'Accepted'
+                          ? const Icon(Icons.check_circle, color: Colors.green)
+                          : const Icon(
+                              Icons.cancel_outlined,
+                              color: Colors.red,
+                            )),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  widget.title,
+                  widget.document.title,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              GestureDetector(
-                onTap: _toggleOptions,
-                child: const Icon(Icons.more_vert),
-              ),
+              widget.document.status == 'Pending'
+                  ? GestureDetector(
+                      onTap: _toggleOptions,
+                      child: const Icon(Icons.more_vert),
+                    )
+                  : const SizedBox.shrink(),
             ],
           ),
         ),
@@ -265,10 +241,22 @@ class _DashboardCardState extends State<DashboardCard> {
                   ),
                   icon: const Icon(Icons.check),
                   label: const Text("Accept"),
-                  onPressed: () {
-                    widget.onAccept(widget.title);
+                  onPressed: () async {
+                    widget.document.status = 'Accepted';
+                    setState(() {
+                      _showOptions = false;
+                    });
+                    await changeStatus(
+                      widget.document.id,
+                      'Accepted',
+                      null,
+                      widget.document.ownerId,
+                    );
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Accepted: ${widget.title}')),
+                      SnackBar(
+                        content: Text('Accepted: ${widget.document.title}'),
+                      ),
                     );
                   },
                 ),
@@ -282,11 +270,27 @@ class _DashboardCardState extends State<DashboardCard> {
                     ),
                   ),
                   icon: const Icon(Icons.close),
-                  label: const Text("Decline"),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Declined: ${widget.title}')),
-                    );
+                  label: const Text("Reject"),
+                  onPressed: () async {
+                    final remarks = await _showRemarksDialog(context);
+                    if (remarks != null && remarks.isNotEmpty) {
+                      setState(() {
+                        widget.document.status = 'Rejected';
+                        _showOptions = false;
+                      });
+                      await changeStatus(
+                        widget.document.id,
+                        'Rejected',
+                        remarks,
+                        widget.document.ownerId,
+                      );
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Rejected: ${widget.document.title}'),
+                        ),
+                      );
+                    }
                   },
                 ),
                 const SizedBox(width: 8),
@@ -300,11 +304,7 @@ class _DashboardCardState extends State<DashboardCard> {
                   ),
                   icon: const Icon(Icons.remove_red_eye_outlined),
                   label: const Text("View"),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Declined: ${widget.title}')),
-                    );
-                  },
+                  onPressed: () => viewDocument(widget.document, context),
                 ),
               ],
             ),

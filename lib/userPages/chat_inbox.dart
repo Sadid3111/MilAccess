@@ -178,19 +178,31 @@ class _ChatInboxScreenState extends State<ChatInboxScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: Image.network(
-              'https://cdn-icons-png.flaticon.com/512/5436/5436245.png',
-              height: 35,
-              width: 35,
+        title: Row(
+          children: [
+            Container(
+              height: 45, // Adjust the container size
+              width: 45, // Adjust the container size
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                border: Border.all(
+                  color: Colors.blue, // Border color
+                  width: 2, // Border width
+                ),
+              ),
+              child: ClipOval(
+                child: Image.network(
+                  'https://cdn-icons-png.flaticon.com/512/5436/5436245.png',
+                  height: 35,
+                  width: 35,
+                  fit: BoxFit.cover, // Ensures the image fits within the circle
+                ),
+              ),
             ),
-          ),
-        ],
-        title: Text(
-          widget.contactName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+            const SizedBox(width: 10),
+            Text(widget.contactName),
+          ],
         ),
         backgroundColor: Colors.green[700],
       ),
@@ -244,22 +256,6 @@ class _ChatInboxScreenState extends State<ChatInboxScreen> {
                               .start, // Align receiver's bubble and button to the left
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      // if (isCurrentUser) // Share button for receiver (on the right of the bubble)
-                      //   TextButton(
-                      //     style: TextButton.styleFrom(
-                      //       padding: EdgeInsets.zero, // removes all padding
-                      //       minimumSize: const Size(
-                      //         0,
-                      //         0,
-                      //       ), // prevents minimum size constraints
-                      //       tapTargetSize: MaterialTapTargetSize
-                      //           .shrinkWrap, // shrinks touch target
-                      //     ),
-                      //     onPressed: () {
-                      //       // Handle share action
-                      //     },
-                      //     child: const Icon(Icons.reply, color: Colors.blue),
-                      //   ),
                       ChatBubble(
                         clipper: ChatBubbleClipper1(
                           type: isCurrentUser
@@ -271,8 +267,8 @@ class _ChatInboxScreenState extends State<ChatInboxScreen> {
                             : Alignment.topLeft,
                         margin: const EdgeInsets.only(top: 20),
                         backGroundColor: isCurrentUser
-                            ? Colors.grey
-                            : Colors.blue,
+                            ? Colors.green
+                            : Colors.lightGreen,
                         child: Container(
                           constraints: BoxConstraints(
                             maxWidth: MediaQuery.of(context).size.width * 0.7,
@@ -285,16 +281,16 @@ class _ChatInboxScreenState extends State<ChatInboxScreen> {
                                   data['replyTo'] != null &&
                                   data['replyTo'].toString().isNotEmpty)
                                 Container(
-                                  padding: const EdgeInsets.all(8.0),
-                                  margin: const EdgeInsets.only(bottom: 4.0),
+                                  padding: const EdgeInsets.all(4.0),
+                                  margin: const EdgeInsets.only(bottom: 2.0),
                                   decoration: BoxDecoration(
-                                    color: Colors.grey[200],
-                                    borderRadius: BorderRadius.circular(8.0),
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(4.0),
                                   ),
                                   child: Text(
                                     message['replyTo'],
                                     style: const TextStyle(
-                                      color: Colors.black,
+                                      color: Colors.grey,
                                       fontStyle: FontStyle.italic,
                                     ),
                                   ),
@@ -321,7 +317,10 @@ class _ChatInboxScreenState extends State<ChatInboxScreen> {
                           onPressed: () {
                             _replyToMessage(message['content']);
                           },
-                          child: const Icon(Icons.reply, color: Colors.blue),
+                          child: const Icon(
+                            Icons.reply,
+                            color: Colors.lightGreen,
+                          ),
                         ),
                     ],
                   ),
@@ -332,7 +331,7 @@ class _ChatInboxScreenState extends State<ChatInboxScreen> {
           // Reply UI (conditionally displayed)
           if (replyText.isNotEmpty)
             Container(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(4.0),
               margin: const EdgeInsets.symmetric(
                 horizontal: 8.0,
                 vertical: 4.0,

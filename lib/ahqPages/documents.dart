@@ -29,7 +29,8 @@ class _DocumentsPageState extends State<DocumentsPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PDFViewerScreen(pdfAssetPath: path),
+        builder: (context) => PDFViewerScreen
+        (pdfAssetPath: path),
       ),
     );
   }

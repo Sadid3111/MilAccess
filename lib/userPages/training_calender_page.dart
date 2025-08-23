@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/models/user_data.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -45,7 +46,9 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
   // Load events from SharedPreferences
   Future<void> _loadEvents() async {
     final prefs = await SharedPreferences.getInstance();
-    final eventsJson = prefs.getString('calendar_events');
+    //await prefs.remove('calendar_events');
+    final eventsJson = prefs.getString('calendar_events-${UserData.uid}');
+
     if (eventsJson != null) {
       final Map<String, dynamic> eventsMap = json.decode(eventsJson);
       setState(() {
@@ -54,7 +57,7 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
           final date = DateTime.parse(key);
           final events = (value as List)
               .map((e) => CalendarEvent.fromJson(e))
-              .toList();
+              .toList(); 
           _events[date] = events;
         });
       });
@@ -68,7 +71,10 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
     _events.forEach((key, value) {
       eventsMap[key.toIso8601String()] = value.map((e) => e.toJson()).toList();
     });
-    await prefs.setString('calendar_events', json.encode(eventsMap));
+    await prefs.setString(
+      'calendar_events-${UserData.uid}',
+      json.encode(eventsMap),
+    );
   }
 
   List<CalendarEvent> _getEventsForDay(DateTime day) {
@@ -167,106 +173,116 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search events...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _searchController.clear();
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+      body: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search events...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            setState(() {
+                              _searchController.clear();
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-            ),
-          ),
-
-          // Calendar
-          if (_searchQuery.isEmpty) ...[
-            TableCalendar<CalendarEvent>(
-              firstDay: DateTime.utc(2020),
-              lastDay: DateTime.utc(2030),
-              focusedDay: _focusedDay,
-              selectedDayPredicate: (day) {
-                return isSameDay(_selectedDay, day);
-              },
-              onDaySelected: (selectedDay, focusedDay) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                });
-              },
-              eventLoader: _getEventsForDay,
-              calendarFormat: _calendarFormat,
-              startingDayOfWeek: StartingDayOfWeek.monday,
-              calendarStyle: CalendarStyle(
-                todayDecoration: BoxDecoration(
-                  color: Colors.green[300],
-                  shape: BoxShape.circle,
-                ),
-                selectedDecoration: BoxDecoration(
-                  color: Colors.green[800],
-                  shape: BoxShape.circle,
-                ),
-                markerDecoration: const BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                ),
-                markersMaxCount: 3,
-              ),
-              calendarBuilders: CalendarBuilders(
-                markerBuilder: (context, date, events) {
-                  if (events.isEmpty) return null;
-
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: events.take(3).map((event) {
-                      final calEvent = event; // Fixed: Removed unnecessary cast
-                      return Container(
-                        width: 6,
-                        height: 6,
-                        margin: const EdgeInsets.symmetric(horizontal: 1),
-                        decoration: BoxDecoration(
-                          color: _eventTypeColors[calEvent.type] ?? Colors.grey,
-                          shape: BoxShape.circle,
-                        ),
-                      );
-                    }).toList(),
-                  );
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
                 },
               ),
             ),
-            const SizedBox(height: 10),
-          ],
 
-          // Event list or search results
-          Expanded(
-            child: _searchQuery.isNotEmpty
-                ? _buildSearchResults()
-                : _buildEventList(),
-          ),
-        ],
+            // Calendar
+            if (_searchQuery.isEmpty) ...[
+              TableCalendar<CalendarEvent>(
+                firstDay: DateTime.utc(2020),
+                lastDay: DateTime.utc(2030),
+                focusedDay: _focusedDay,
+                selectedDayPredicate: (day) {
+                  return isSameDay(_selectedDay, day);
+                },
+                onDaySelected: (selectedDay, focusedDay) {
+                  setState(() {
+                    _selectedDay = selectedDay;
+                    _focusedDay = focusedDay;
+                  });
+                },
+                eventLoader: _getEventsForDay,
+                calendarFormat: _calendarFormat,
+                onFormatChanged: (format) {
+                  setState(() {
+                    _calendarFormat = format; // Update the calendar format
+                  });
+                },
+                startingDayOfWeek: StartingDayOfWeek.monday,
+                calendarStyle: CalendarStyle(
+                  todayDecoration: BoxDecoration(
+                    color: Colors.green[300],
+                    shape: BoxShape.circle,
+                  ),
+                  selectedDecoration: BoxDecoration(
+                    color: Colors.green[800],
+                    shape: BoxShape.circle,
+                  ),
+                  markerDecoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  markersMaxCount: 3,
+                ),
+                calendarBuilders: CalendarBuilders(
+                  markerBuilder: (context, date, events) {
+                    if (events.isEmpty) return null;
+
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: events.take(3).map((event) {
+                        final calEvent =
+                            event; // Fixed: Removed unnecessary cast
+                        return Container(
+                          width: 6,
+                          height: 6,
+                          margin: const EdgeInsets.symmetric(horizontal: 1),
+                          decoration: BoxDecoration(
+                            color:
+                                _eventTypeColors[calEvent.type] ?? Colors.grey,
+                            shape: BoxShape.circle,
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+
+            // Event list or search results
+            Flexible(
+              child: _searchQuery.isNotEmpty
+                  ? _buildSearchResults()
+                  : _buildEventList(),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addEventDialog,
@@ -295,12 +311,15 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
       );
     }
 
-    return ListView.builder(
-      itemCount: filteredEvents.length,
-      itemBuilder: (context, index) {
-        final event = filteredEvents[index];
-        return _buildEventCard(event, showDate: true);
-      },
+    return SizedBox(
+      height: MediaQuery.of(context).size.height,
+      child: ListView.builder(
+        itemCount: filteredEvents.length,
+        itemBuilder: (context, index) {
+          final event = filteredEvents[index];
+          return _buildEventCard(event, showDate: true);
+        },
+      ),
     );
   }
 
@@ -323,12 +342,15 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
       );
     }
 
-    return ListView.builder(
-      itemCount: selectedEvents.length,
-      itemBuilder: (context, index) {
-        final event = selectedEvents[index];
-        return _buildEventCard(event);
-      },
+    return SizedBox(
+      height: MediaQuery.of(context).size.height,
+      child: ListView.builder(
+        itemCount: selectedEvents.length,
+        itemBuilder: (context, index) {
+          final event = selectedEvents[index];
+          return _buildEventCard(event);
+        },
+      ),
     );
   }
 
@@ -353,7 +375,11 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
               ),
             ),
             if (event.hasReminder)
-              const Icon(Icons.notifications_active, size: 16, color: Colors.orange),
+              const Icon(
+                Icons.notifications_active,
+                size: 16,
+                color: Colors.orange,
+              ),
           ],
         ),
         subtitle: Column(
@@ -487,8 +513,12 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
                     final date = await showDatePicker(
                       context: context,
                       initialDate: selectedDate,
-                      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                      firstDate: DateTime.now().subtract(
+                        const Duration(days: 365),
+                      ),
+                      lastDate: DateTime.now().add(
+                        const Duration(days: 365 * 2),
+                      ),
                     );
                     if (date != null) {
                       setDialogState(() => selectedDate = date);
@@ -538,7 +568,9 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
                         setDialogState(() => recurringType = value);
                       }
                     },
-                    decoration: const InputDecoration(labelText: 'Recurring Type'),
+                    decoration: const InputDecoration(
+                      labelText: 'Recurring Type',
+                    ),
                   ),
               ],
             ),
@@ -646,7 +678,10 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
     _saveEvents();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Event deleted'), backgroundColor: Colors.red),
+      const SnackBar(
+        content: Text('Event deleted'),
+        backgroundColor: Colors.red,
+      ),
     );
   }
 
