@@ -12,7 +12,7 @@ class generatedReport {
   final String generatedBy;
   final String unitName;
   final DateTime timestamp;
-  final String? remarks;
+  String? remarks;
   final String ownerId;
 
   generatedReport({
@@ -311,7 +311,7 @@ class _ReportPDFViewerState extends State<ReportPDFViewer> {
       await FirebaseFirestore.instance.collection('notifications').add({
         'targetId': targetUserId,
         'content':
-            'A remark has been added to your ${reportType.toLowerCase()}',
+            'A remark has been added to your ${reportType.toLowerCase()}: ${remarksController.text.trim()}',
         'createdAt': FieldValue.serverTimestamp(),
         'seen': false,
       });
@@ -335,7 +335,7 @@ class _ReportPDFViewerState extends State<ReportPDFViewer> {
           reportId,
         );
       }
-
+      widget.report.remarks = remarksController.text;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

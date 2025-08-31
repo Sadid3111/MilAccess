@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'ammunition_report.dart';// Rename your ammunition_report.dart to this
+import 'ammunition_report.dart'; // Rename your ammunition_report.dart to this
 import 'convoy_report.dart';
 import 'grenade_report.dart';
 import 'patrolling_report.dart';
 
-
-
 class ReportTypeSelectorPage extends StatelessWidget {
-  const ReportTypeSelectorPage({super.key});
+  final String role;
+  const ReportTypeSelectorPage({super.key, required this.role});
 
   @override
   Widget build(BuildContext context) {
@@ -15,22 +14,22 @@ class ReportTypeSelectorPage extends StatelessWidget {
       {
         'title': 'SA Firing Report',
         'icon': Icons.local_fire_department,
-        'page': const ReportGeneratorPage(),
+        'page': ReportGeneratorPage(role: role),
       },
       {
         'title': 'Mov Report',
         'icon': Icons.directions_bus,
-        'page': const ConvoyReportPage(),
+        'page': ConvoyReportPage(role: role),
       },
       {
         'title': 'Grenade Firing Report',
         'icon': Icons.brightness_high,
-        'page': const GrenadeReportPage(),
+        'page': GrenadeReportPage(role: role),
       },
       {
         'title': 'Patrolling Report',
         'icon': Icons.directions_walk,
-        'page': const PatrollingReportPage(),
+        'page': PatrollingReportPage(role: role),
       },
     ];
 
@@ -77,11 +76,18 @@ class ReportTypeSelectorPage extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(report['icon'], color: const Color(0xFF006400), size: 32),
+                  Icon(
+                    report['icon'],
+                    color: const Color(0xFF006400),
+                    size: 32,
+                  ),
                   const SizedBox(width: 16),
                   Text(
                     report['title'],
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/models/user_data.dart';
 
 class ConvoyReportPage extends StatefulWidget {
-  const ConvoyReportPage({super.key});
+  final String role;
+  const ConvoyReportPage({super.key, required this.role});
 
   @override
   State<ConvoyReportPage> createState() => _ConvoyReportPageState();
@@ -69,6 +69,7 @@ ${commanderRankController.text} ${commanderDisplayNameController.text}
     if (generatedReport.isEmpty) return;
 
     try {
+      // Save the report
       await FirebaseFirestore.instance.collection('reports').add({
         'type': 'Mov Report',
         'content': generatedReport,
@@ -79,6 +80,30 @@ ${commanderRankController.text} ${commanderDisplayNameController.text}
         'ownerId': UserData.uid,
         'role': UserData.role,
       });
+
+      // Create notification based on role
+      String targetId;
+      String notificationContent;
+
+      if (widget.role.toLowerCase() == 'user') {
+        targetId =
+            UserData.unitName; // Admin of the same unit gets notification
+        notificationContent =
+            'New Mov Report submitted by ${commanderRankController.text} ${commanderDisplayNameController.text}';
+      } else {
+        targetId = 'ahq'; // AHQ gets notification from admin
+        notificationContent =
+            'New Mov Report submitted by ${UserData.unitName} - ${commanderRankController.text} ${commanderDisplayNameController.text}';
+      }
+
+      // Save notification
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'createdAt': FieldValue.serverTimestamp(),
+        'content': notificationContent,
+        'targetId': targetId,
+        'seen': false,
+      });
+
       setState(() {
         generatedReport = '';
         destinationController.clear();

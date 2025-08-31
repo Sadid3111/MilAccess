@@ -97,7 +97,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       icon: Icons.pending_actions,
       onTap: (context) => Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const ReportTypeSelectorPage()),
+        MaterialPageRoute(
+          builder: (context) => const ReportTypeSelectorPage(role: 'admin'),
+        ),
       ),
     ),
     SearchItem(
@@ -826,7 +828,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
-                                        const ReportTypeSelectorPage(),
+                                        const ReportTypeSelectorPage(
+                                          role: 'admin',
+                                        ),
                                   ),
                                 );
                               },

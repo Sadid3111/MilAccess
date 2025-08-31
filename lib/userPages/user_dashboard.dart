@@ -92,7 +92,9 @@ class UserDashboardPageState extends State<UserDashboardPage> {
       icon: Icons.pending_actions,
       onTap: (context) => Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const ReportTypeSelectorPage()),
+        MaterialPageRoute(
+          builder: (context) => const ReportTypeSelectorPage(role: 'user'),
+        ),
       ),
     ),
     SearchItem(
@@ -457,7 +459,9 @@ class UserDashboardPageState extends State<UserDashboardPage> {
                         itemBuilder: (context, index) {
                           final notification = notifications[index];
                           return ListTile(
-                            title: Text(notification['content'] ?? ''),
+                            title: Text(
+                              notification['content'].toString().trim(),
+                            ),
                             leading: Icon(
                               Icons.notification_important,
                               color: notification['seen']
@@ -925,7 +929,9 @@ class UserDashboardPageState extends State<UserDashboardPage> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
-                                        const ReportTypeSelectorPage(),
+                                        const ReportTypeSelectorPage(
+                                          role: 'user',
+                                        ),
                                   ),
                                 );
                               },

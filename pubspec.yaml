@@ -55,9 +55,18 @@ dependencies:
   string_similarity: ^2.0.0
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.1
+  
+flutter_launcher_icons:
+  android: true
+  ios: true
+  adaptive_icon_background: "#1B5E20" # deep green military vibe
+  adaptive_icon_foreground: "assets/milaccess_logo.png"
+  image_path: "assets/milaccess_logo.png"
+
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

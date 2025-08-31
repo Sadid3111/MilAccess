@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/models/user_data.dart';
 
 class PatrollingReportPage extends StatefulWidget {
-  const PatrollingReportPage({super.key});
+  final String role;
+  const PatrollingReportPage({super.key, required this.role});
 
   @override
   State<PatrollingReportPage> createState() => _PatrollingReportPageState();
@@ -81,6 +81,7 @@ ${commanderRankController.text} ${commanderNameController.text}
     if (generatedReport.isEmpty) return;
 
     try {
+      // Save the report
       await FirebaseFirestore.instance.collection('reports').add({
         'type': 'Patrolling Report',
         'content': generatedReport,
@@ -91,6 +92,30 @@ ${commanderRankController.text} ${commanderNameController.text}
         'ownerId': UserData.uid,
         'role': UserData.role,
       });
+
+      // Create notification based on role
+      String targetId;
+      String notificationContent;
+
+      if (widget.role.toLowerCase() == 'user') {
+        targetId =
+            UserData.unitName; // Admin of the same unit gets notification
+        notificationContent =
+            'New Patrolling Report submitted by ${commanderRankController.text} ${commanderNameController.text}';
+      } else {
+        targetId = 'ahq'; // AHQ gets notification from admin
+        notificationContent =
+            'New Patrolling Report submitted by ${UserData.unitName} - ${commanderRankController.text} ${commanderNameController.text}';
+      }
+
+      // Save notification
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'createdAt': FieldValue.serverTimestamp(),
+        'content': notificationContent,
+        'targetId': targetId,
+        'seen': false,
+      });
+
       setState(() {
         generatedReport = '';
         destinationController.clear();

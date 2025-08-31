@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/models/user_data.dart';
 
 class ReportGeneratorPage extends StatefulWidget {
-  const ReportGeneratorPage({super.key});
+  final String role;
+  const ReportGeneratorPage({super.key, required this.role});
 
   @override
   State<ReportGeneratorPage> createState() => _ReportGeneratorPageState();
@@ -50,6 +50,7 @@ ${rankController.text} ${nameController.text}
     if (generatedReport.isEmpty) return;
 
     try {
+      // Save the report
       await FirebaseFirestore.instance.collection('reports').add({
         'type': 'SA Firing Report',
         'content': generatedReport,
@@ -59,6 +60,30 @@ ${rankController.text} ${nameController.text}
         'ownerId': UserData.uid,
         'role': UserData.role,
       });
+
+      // Create notification based on role
+      String targetId;
+      String notificationContent;
+
+      if (widget.role.toLowerCase() == 'user') {
+        targetId =
+            UserData.unitName; // Admin of the same unit gets notification
+        notificationContent =
+            'New SA Firing Report submitted by ${rankController.text} ${nameController.text}';
+      } else {
+        targetId = 'ahq'; // AHQ gets notification from admin
+        notificationContent =
+            'New SA Firing Report submitted by ${UserData.unitName} - ${rankController.text} ${nameController.text}';
+      }
+
+      // Save notification
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'createdAt': FieldValue.serverTimestamp(),
+        'content': notificationContent,
+        'targetId': targetId,
+        'seen': false,
+      });
+
       setState(() {
         generatedReport = '';
         ammoController.clear();
