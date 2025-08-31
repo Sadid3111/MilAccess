@@ -22,14 +22,29 @@ class Sign23CombinedScreen extends StatefulWidget {
 class _Sign23CombinedScreenState extends State<Sign23CombinedScreen> {
   TextEditingController contactController = TextEditingController();
   TextEditingController idNumberController = TextEditingController();
-  TextEditingController unitNameController = TextEditingController();
+  String? selectedUnitName;
   bool isLoading = false;
+
+  final List<String> signalBattalions = [
+    '1 Sig Bn',
+    '2 Sig Bn',
+    '3 Sig Bn',
+    '4 Sig Bn',
+    '5 Sig Bn',
+    '6 Sig Bn',
+    '7 Sig Bn',
+    '8 Sig Bn',
+    '9 Sig Bn',
+    '10 Sig Bn',
+    '11 Sig Bn',
+    '12 Sig Bn',
+  ];
 
   Future<void> onTapSignup(BuildContext context) async {
     final contact = contactController.text.trim();
     final idNumber = idNumberController.text.trim();
-    final unitName = unitNameController.text.trim();
-    if (contact.isEmpty || idNumber.isEmpty || unitName.isEmpty) {
+    final unitName = selectedUnitName;
+    if (contact.isEmpty || idNumber.isEmpty || unitName == null) {
       context.showErrorSnackBar(message: 'All Fields must be filled!');
       return;
     }
@@ -83,7 +98,6 @@ class _Sign23CombinedScreenState extends State<Sign23CombinedScreen> {
   void dispose() {
     contactController.dispose();
     idNumberController.dispose();
-    unitNameController.dispose();
     super.dispose();
   }
 
@@ -157,10 +171,10 @@ class _Sign23CombinedScreenState extends State<Sign23CombinedScreen> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              TextField(
-                                controller: unitNameController,
+                              DropdownButtonFormField<String>(
+                                value: selectedUnitName,
                                 decoration: InputDecoration(
-                                  labelText: 'Enter Unit Name',
+                                  labelText: 'Select Unit Name',
                                   filled: true,
                                   fillColor: Colors.white,
                                   border: OutlineInputBorder(
@@ -168,6 +182,17 @@ class _Sign23CombinedScreenState extends State<Sign23CombinedScreen> {
                                     borderSide: BorderSide.none,
                                   ),
                                 ),
+                                items: signalBattalions.map((String unit) {
+                                  return DropdownMenuItem<String>(
+                                    value: unit,
+                                    child: Text(unit),
+                                  );
+                                }).toList(),
+                                onChanged: (String? newValue) {
+                                  setState(() {
+                                    selectedUnitName = newValue;
+                                  });
+                                },
                               ),
                               const SizedBox(height: 40),
                               Center(

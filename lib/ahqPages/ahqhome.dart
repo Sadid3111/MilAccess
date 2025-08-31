@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/adminPages/features/incident_report/incident_report_screen.dart';
 import 'package:flutter_application_1/ahqPages/pendingrequests.dart';
 import 'package:flutter_application_1/ahqPages/profile_page.dart';
-import 'package:flutter_application_1/features/calendar/calendar_screen.dart';
 import 'package:flutter_application_1/models/user_data.dart';
 import 'package:flutter_application_1/userPages/contact_info_page.dart';
 import 'package:flutter_application_1/userPages/settings_page.dart';
 import 'package:flutter_application_1/userPages/training_calender_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import 'report_type.dart';
 import 'uploadrequests.dart';
 import 'documents.dart';
@@ -18,20 +20,192 @@ class AHQHome extends StatefulWidget {
 }
 
 class _AHQHomeState extends State<AHQHome> {
-  final List<String> notifications = [
-    "New message from John",
-    "Your order has been shipped",
-    "Reminder: Meeting at 3 PM",
-    "Update available for your app",
+  List<Map<String, dynamic>> notifications = [];
+  StreamSubscription<QuerySnapshot>? _notificationSubscription;
+  int notifCount = 0;
+
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  // List of all available features/cards
+  final List<Map<String, dynamic>> _allFeatures = [
+    {
+      'title': 'Incident Report',
+      'icon': Icons.warning_amber,
+      'keywords': ['incident', 'report', 'warning', 'emergency', 'alert'],
+    },
+    {
+      'title': 'Pending Upload Requests',
+      'icon': Icons.cloud_upload,
+      'keywords': ['upload', 'pending', 'requests', 'documents', 'files'],
+    },
+    {
+      'title': 'View Documents',
+      'icon': Icons.article,
+      'keywords': ['documents', 'files', 'view', 'browse', 'articles'],
+    },
+    {
+      'title': 'Training Calendar',
+      'icon': Icons.calendar_today,
+      'keywords': ['training', 'calendar', 'schedule', 'events', 'dates'],
+    },
   ];
+
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.toLowerCase();
+      });
+    });
+    _setupNotificationListener();
+  }
+
+  void _setupNotificationListener() {
+    _notificationSubscription = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('targetId', isEqualTo: 'ahq')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .listen((snapshot) {
+          setState(() {
+            notifications = snapshot.docs.map((doc) {
+              final data = doc.data();
+              return {
+                'id': doc.id,
+                'content': data['content'] ?? '',
+                'createdAt': data['createdAt'],
+                'seen': data['seen'] ?? false,
+              };
+            }).toList();
+
+            // Count unseen notifications
+            notifCount = notifications.where((notif) => !notif['seen']).length;
+          });
+        });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _notificationSubscription?.cancel();
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> _getFilteredFeatures() {
+    if (_searchQuery.isEmpty) {
+      return _allFeatures;
+    }
+
+    return _allFeatures.where((feature) {
+      final title = feature['title'].toString().toLowerCase();
+      final keywords = List<String>.from(feature['keywords']);
+
+      return title.contains(_searchQuery) ||
+          keywords.any((keyword) => keyword.contains(_searchQuery));
+    }).toList();
+  }
+
+  void _navigateToFeature(String title) {
+    switch (title) {
+      case 'Incident Report':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const IncidentReportScreen(role: 'ahq'),
+          ),
+        );
+        break;
+      case 'Pending Upload Requests':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const UploadRequests()),
+        );
+        break;
+      case 'View Documents':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const DocumentsPage()),
+        );
+        break;
+      case 'Training Calendar':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const TrainingCalendarPage()),
+        );
+        break;
+    }
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
+  Future<void> _markNotificationAsSeen(String notificationId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('notifications')
+          .doc(notificationId)
+          .update({'seen': true});
+    } catch (e) {
+      print('Error marking notification as seen: $e');
+    }
+  }
+
+  Future<void> _markAllNotificationsAsSeen() async {
+    try {
+      // Get all unseen notifications for AHQ
+      final batch = FirebaseFirestore.instance.batch();
+
+      for (final notification in notifications) {
+        if (!notification['seen']) {
+          final docRef = FirebaseFirestore.instance
+              .collection('notifications')
+              .doc(notification['id']);
+          batch.update(docRef, {'seen': true});
+        }
+      }
+
+      await batch.commit();
+
+      // Update local state immediately
+      setState(() {
+        notifCount = 0;
+        for (var i = 0; i < notifications.length; i++) {
+          notifications[i]['seen'] = true;
+        }
+      });
+    } catch (e) {
+      print('Error marking all notifications as seen: $e');
+    }
+  }
+
+  String _formatTimestamp(Timestamp? timestamp) {
+    if (timestamp == null) return '';
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minutes ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
   void showNotificationPanel(BuildContext context) {
+    // Mark all unseen notifications as seen when panel opens
+    _markAllNotificationsAsSeen();
+
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -47,19 +221,53 @@ class _AHQHomeState extends State<AHQHome> {
               ),
               const Divider(),
               Expanded(
-                child: ListView.builder(
-                  itemCount: notifications.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(notifications[index]),
-                      leading: const Icon(Icons.notification_important),
-                      onTap: () {
-                        // Handle notification tap
-                        print("Tapped on: ${notifications[index]}");
-                      },
-                    );
-                  },
-                ),
+                child: notifications.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.notifications_none,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'No notifications yet',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: notifications.length,
+                        itemBuilder: (context, index) {
+                          final notification = notifications[index];
+                          return ListTile(
+                            title: Text(notification['content'] ?? ''),
+                            leading: Icon(
+                              Icons.notification_important,
+                              color: notification['seen']
+                                  ? Colors.grey
+                                  : Colors.red,
+                            ),
+                            subtitle: notification['createdAt'] != null
+                                ? Text(
+                                    'Received: ${_formatTimestamp(notification['createdAt'])}',
+                                    style: const TextStyle(fontSize: 12),
+                                  )
+                                : null,
+                            onTap: () {
+                              // Mark as seen when tapped
+                              _markNotificationAsSeen(notification['id']);
+                              print("Tapped on: ${notification['content']}");
+                            },
+                          );
+                        },
+                      ),
               ),
             ],
           ),
@@ -184,106 +392,137 @@ class _AHQHomeState extends State<AHQHome> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications),
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications, size: 30),
+                if (notifCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        notifCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             onPressed: () {
               showNotificationPanel(context); // Open the modal bottom sheet
             },
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.center, // Center all horizontally
-          children: [
-            const SizedBox(height: 24),
-            const Text(
-              'Welcome, AHQ!',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            // Search bar
-            Container(
-              width: double.infinity, // Stretch to full width if needed
-              padding: const EdgeInsets.symmetric(horizontal: 26),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 5,
-                    offset: Offset(0, 2),
-                  ),
-                ],
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.center, // Center all horizontally
+            children: [
+              const SizedBox(height: 24),
+              const Text(
+                'Welcome, AHQ!',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
-              child: const Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search...',
-                        border: InputBorder.none,
+              const SizedBox(height: 16),
+              // Search bar
+              Container(
+                width: double.infinity, // Stretch to full width if needed
+                padding: const EdgeInsets.symmetric(horizontal: 26),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 5,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: const InputDecoration(
+                          hintText: 'Search features...',
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (value) {
+                          // The listener already handles this
+                        },
                       ),
                     ),
-                  ),
-                  Icon(Icons.search, color: Color(0xFF006400)),
-                ],
+                    GestureDetector(
+                      onTap: () {
+                        if (_searchController.text.isNotEmpty) {
+                          _searchController.clear();
+                        }
+                      },
+                      child: Icon(
+                        _searchController.text.isNotEmpty
+                            ? Icons.clear
+                            : Icons.search,
+                        color: const Color(0xFF006400),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            // Cards
-            DashboardCard(
-              title: 'Report Generator',
-              icon: Icons.assignment, // Custom icon
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ReportTypeSelectorPage(),
+              const SizedBox(height: 24),
+              // Dynamic Cards based on search
+              ..._getFilteredFeatures()
+                  .map(
+                    (feature) => DashboardCard(
+                      icon: feature['icon'],
+                      title: feature['title'],
+                      onTap: () => _navigateToFeature(feature['title']),
+                    ),
+                  )
+                  .toList(),
+
+              // Show "No results found" message when search has no matches
+              if (_searchQuery.isNotEmpty && _getFilteredFeatures().isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No features found for "$_searchQuery"',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Try searching for: incident, upload, documents, training',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
-            DashboardCard(
-              title: 'Pending Upload Requests',
-              icon: Icons.cloud_upload, // Custom icon
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const UploadRequests(),
-                  ),
-                );
-              },
-            ),
-            DashboardCard(
-              title: 'View Documents',
-              icon: Icons.article, // Custom icon
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const DocumentsPage(),
-                  ),
-                );
-              },
-            ),
-            DashboardCard(
-              title: 'Training Calendar',
-              icon: Icons.calendar_today,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const TrainingCalendarPage(),
-                  ),
-                );
-              },
-            ),
-          ],
+                ),
+            ],
+          ),
         ),
       ),
     );

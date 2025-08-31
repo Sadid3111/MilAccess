@@ -43,6 +43,13 @@ Future<void> changeStatus(
         'targetId': ownerId,
         'seen': false,
       });
+    } else {
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'content': 'Some document(s) are on $status !',
+        'createdAt': FieldValue.serverTimestamp(),
+        'targetId': 'ahq',
+        'seen': false,
+      });
     }
     print('next1-------------------------->');
     await FirebaseFirestore.instance.collection('files').doc(docId).update({

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_1/models/user_data.dart';
 
 class ReportGeneratorPage extends StatefulWidget {
   const ReportGeneratorPage({super.key});
@@ -24,7 +26,8 @@ class _ReportGeneratorPageState extends State<ReportGeneratorPage> {
   void generateReport() {
     if (_formKey.currentState!.validate()) {
       setState(() {
-        generatedReport = '''
+        generatedReport =
+            '''
 Assalamu Alaikum sir,
 
 Total Ammo: ${ammoController.text} rounds  
@@ -40,6 +43,51 @@ Regards
 ${rankController.text} ${nameController.text}
         ''';
       });
+    }
+  }
+
+  Future<void> saveReportToFirebase() async {
+    if (generatedReport.isEmpty) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('reports').add({
+        'type': 'SA Firing Report',
+        'content': generatedReport,
+        'generatedBy': '${rankController.text} ${nameController.text}',
+        'unitName': UserData.unitName,
+        'timestamp': FieldValue.serverTimestamp(),
+        'ownerId': UserData.uid,
+        'role': UserData.role,
+      });
+      setState(() {
+        generatedReport = '';
+        ammoController.clear();
+        firedController.clear();
+        misfireController.clear();
+        collectedController.clear();
+        lostController.clear();
+        rankController.clear();
+        nameController.clear();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Report sent successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send report: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -96,11 +144,8 @@ ${rankController.text} ${nameController.text}
                   collectedController,
                   lostController,
                   rankController,
-                  nameController
-                ]
-                    .asMap()
-                    .entries
-                    .map((entry) {
+                  nameController,
+                ].asMap().entries.map((entry) {
                   final index = entry.key;
                   final controller = entry.value;
                   final labels = [
@@ -110,7 +155,7 @@ ${rankController.text} ${nameController.text}
                     'Shells Collected',
                     'Lost Shells',
                     'Officer Rank',
-                    'Officer Name'
+                    'Officer Name',
                   ];
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -138,9 +183,12 @@ ${rankController.text} ${nameController.text}
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF006400),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12),
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   child: const Text(
                     'Generate Report',
@@ -149,20 +197,65 @@ ${rankController.text} ${nameController.text}
                 ),
                 if (generatedReport.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => Share.share(generatedReport),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Clipboard.setData(
+                              ClipboardData(text: generatedReport),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Report copied to clipboard'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          icon: const Icon(Icons.copy, color: Colors.white),
+                          label: const Text(
+                            'Copy',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
                       ),
-                    ),
-                    icon: const Icon(Icons.share, color: Colors.white),
-                    label: const Text('Share', style: TextStyle(color: Colors.white)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            await saveReportToFirebase();
+                            //Share.share(generatedReport);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          icon: const Icon(Icons.share, color: Colors.white),
+                          label: const Text(
+                            'Send',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-
 
                 const SizedBox(height: 32),
                 const Align(

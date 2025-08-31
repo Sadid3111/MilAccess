@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_1/models/user_data.dart';
 
 class ConvoyReportPage extends StatefulWidget {
   const ConvoyReportPage({super.key});
@@ -41,7 +43,8 @@ class _ConvoyReportPageState extends State<ConvoyReportPage> {
           .join('\n');
 
       setState(() {
-        generatedReport = '''
+        generatedReport =
+            '''
 Assalamu Alaikum sir, 
 
 I, ${commanderRankController.text} ${commanderDisplayNameController.text}, have started for ${destinationController.text} at ${startTimeController.text} with fol under my disposal:
@@ -59,6 +62,58 @@ Regards
 ${commanderRankController.text} ${commanderDisplayNameController.text}
 ''';
       });
+    }
+  }
+
+  Future<void> saveReportToFirebase() async {
+    if (generatedReport.isEmpty) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('reports').add({
+        'type': 'Mov Report',
+        'content': generatedReport,
+        'generatedBy':
+            '${commanderRankController.text} ${commanderDisplayNameController.text}',
+        'unitName': UserData.unitName,
+        'timestamp': FieldValue.serverTimestamp(),
+        'ownerId': UserData.uid,
+        'role': UserData.role,
+      });
+      setState(() {
+        generatedReport = '';
+        destinationController.clear();
+        commanderNameController.clear();
+        contactNumberController.clear();
+        strengthController.clear();
+        itemsCarriedController.clear();
+        vehicleStateController.clear();
+        startTimeController.clear();
+        presentLocationController.clear();
+        commanderRankController.clear();
+        commanderDisplayNameController.clear();
+        for (final c in routeControllers) {
+          c.clear();
+        }
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Report sent successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send report: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -91,8 +146,7 @@ ${commanderRankController.text} ${commanderDisplayNameController.text}
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Mov Report',
-            style: TextStyle(color: Colors.black)),
+        title: const Text('Mov Report', style: TextStyle(color: Colors.black)),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -111,27 +165,40 @@ ${commanderRankController.text} ${commanderDisplayNameController.text}
                 // Text fields
                 buildTextField('Destination', destinationController),
                 buildTextField("Commander's Name", commanderNameController),
-                buildTextField('Contact Number', contactNumberController,
-                    keyboardType: TextInputType.phone),
+                buildTextField(
+                  'Contact Number',
+                  contactNumberController,
+                  keyboardType: TextInputType.phone,
+                ),
                 buildTextField('Total Strength', strengthController),
                 buildTextField('Items Carried', itemsCarriedController),
                 buildTextField('Vehicle State', vehicleStateController),
                 buildTextField('Start Time', startTimeController),
                 buildTextField('Present Location', presentLocationController),
                 buildTextField('Commander Rank', commanderRankController),
-                buildTextField('Commander Display Name', commanderDisplayNameController),
+                buildTextField(
+                  'Commander Display Name',
+                  commanderDisplayNameController,
+                ),
 
                 const SizedBox(height: 16),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Route Checkpoints',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    const Text(
+                      'Route Checkpoints',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     IconButton(
                       onPressed: addCheckpoint,
-                      icon: const Icon(Icons.add_circle, color: Color(0xFF006400)),
+                      icon: const Icon(
+                        Icons.add_circle,
+                        color: Color(0xFF006400),
+                      ),
                     ),
                   ],
                 ),
@@ -141,20 +208,20 @@ ${commanderRankController.text} ${commanderDisplayNameController.text}
                       .entries
                       .map(
                         (entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: TextFormField(
-                        controller: entry.value,
-                        decoration: InputDecoration(
-                          labelText: 'Checkpoint ${entry.key + 1}',
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: TextFormField(
+                            controller: entry.value,
+                            decoration: InputDecoration(
+                              labelText: 'Checkpoint ${entry.key + 1}',
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  )
+                      )
                       .toList(),
                 ),
                 const SizedBox(height: 24),
@@ -163,9 +230,12 @@ ${commanderRankController.text} ${commanderDisplayNameController.text}
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF006400),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12),
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   child: const Text(
                     'Generate Report',
@@ -175,17 +245,58 @@ ${commanderRankController.text} ${commanderDisplayNameController.text}
 
                 if (generatedReport.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => Share.share(generatedReport),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await saveReportToFirebase();
+                          //Share.share(generatedReport);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(Icons.share, color: Colors.white),
+                        label: const Text(
+                          'Send',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
-                    ),
-                    icon: const Icon(Icons.share, color: Colors.white),
-                    label: const Text('Share', style: TextStyle(color: Colors.white)),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Clipboard.setData(
+                            ClipboardData(text: generatedReport),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Report copied to clipboard!'),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(Icons.copy, color: Colors.white),
+                        label: const Text(
+                          'Copy',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
 
@@ -229,8 +340,11 @@ ${commanderRankController.text} ${commanderDisplayNameController.text}
     );
   }
 
-  Widget buildTextField(String label, TextEditingController controller,
-      {TextInputType keyboardType = TextInputType.text}) {
+  Widget buildTextField(
+    String label,
+    TextEditingController controller, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(

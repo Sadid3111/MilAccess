@@ -181,7 +181,6 @@ class ArchiveDatabasePageState extends State<ArchiveDatabasePage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await fetchFiles();
-      
     });
   }
 
@@ -602,9 +601,9 @@ class ArchiveDatabasePageState extends State<ArchiveDatabasePage> {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.grey[300]!),
                     ),
-                    child: Text(
+                    child: const Text(
                       'No content available for this document.',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         height: 1.5,
                         fontFamily: 'monospace',

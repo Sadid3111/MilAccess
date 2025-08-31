@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_1/models/user_data.dart';
 
 class GrenadeReportPage extends StatefulWidget {
   const GrenadeReportPage({super.key});
@@ -50,7 +52,8 @@ class _GrenadeReportPageState extends State<GrenadeReportPage> {
           : 'Not selected';
 
       setState(() {
-        generatedReport = '''
+        generatedReport =
+            '''
 Assalamu Alaikum sir, 
 
 Date: $formattedDate  
@@ -69,6 +72,56 @@ Regards
 ${commanderRankController.text} ${commanderNameController.text}
 ''';
       });
+    }
+  }
+
+  Future<void> saveReportToFirebase() async {
+    if (generatedReport.isEmpty) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('reports').add({
+        'type': 'Grenade Firing Report',
+        'content': generatedReport,
+        'generatedBy':
+            '${commanderRankController.text} ${commanderNameController.text}',
+        'unitName': UserData.unitName,
+        'timestamp': FieldValue.serverTimestamp(),
+        'ownerId': UserData.uid,
+        'role': UserData.role,
+      });
+      setState(() {
+        generatedReport = '';
+        unitController.clear();
+        officerStrengthController.clear();
+        jcoStrengthController.clear();
+        ncoStrengthController.clear();
+        startTimeController.clear();
+        endTimeController.clear();
+        grenadesCarriedController.clear();
+        grenadesFiredController.clear();
+        vehicleStateController.clear();
+        commanderRankController.clear();
+        commanderNameController.clear();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Report sent successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send report: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -99,8 +152,10 @@ ${commanderRankController.text} ${commanderNameController.text}
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Gren Firing Report',
-            style: TextStyle(color: Colors.black)),
+        title: const Text(
+          'Gren Firing Report',
+          style: TextStyle(color: Colors.black),
+        ),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -122,7 +177,9 @@ ${commanderRankController.text} ${commanderNameController.text}
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 16),
+                          horizontal: 12,
+                          vertical: 16,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
@@ -137,19 +194,31 @@ ${commanderRankController.text} ${commanderNameController.text}
                     ),
                     IconButton(
                       onPressed: pickDate,
-                      icon: const Icon(Icons.calendar_today, color: Color(0xFF006400)),
+                      icon: const Icon(
+                        Icons.calendar_today,
+                        color: Color(0xFF006400),
+                      ),
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 16),
                 buildTextField('Unit Name', unitController),
-                buildTextField('Officers Strength', officerStrengthController,
-                    keyboardType: TextInputType.number),
-                buildTextField('JCOs Strength', jcoStrengthController,
-                    keyboardType: TextInputType.number),
-                buildTextField('NCOs Strength', ncoStrengthController,
-                    keyboardType: TextInputType.number),
+                buildTextField(
+                  'Officers Strength',
+                  officerStrengthController,
+                  keyboardType: TextInputType.number,
+                ),
+                buildTextField(
+                  'JCOs Strength',
+                  jcoStrengthController,
+                  keyboardType: TextInputType.number,
+                ),
+                buildTextField(
+                  'NCOs Strength',
+                  ncoStrengthController,
+                  keyboardType: TextInputType.number,
+                ),
                 buildTextField('Start Time', startTimeController),
                 buildTextField('End Time', endTimeController),
                 buildTextField('Grenades Carried', grenadesCarriedController),
@@ -164,9 +233,12 @@ ${commanderRankController.text} ${commanderNameController.text}
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF006400),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12),
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   child: const Text(
                     'Generate Report',
@@ -176,17 +248,58 @@ ${commanderRankController.text} ${commanderNameController.text}
 
                 if (generatedReport.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => Share.share(generatedReport),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await saveReportToFirebase();
+                          //Share.share(generatedReport);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(Icons.share, color: Colors.white),
+                        label: const Text(
+                          'Send',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
-                    ),
-                    icon: const Icon(Icons.share, color: Colors.white),
-                    label: const Text('Share', style: TextStyle(color: Colors.white)),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Clipboard.setData(
+                            ClipboardData(text: generatedReport),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Report copied to clipboard!'),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(Icons.copy, color: Colors.white),
+                        label: const Text(
+                          'Copy',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
 
@@ -230,8 +343,11 @@ ${commanderRankController.text} ${commanderNameController.text}
     );
   }
 
-  Widget buildTextField(String label, TextEditingController controller,
-      {TextInputType keyboardType = TextInputType.text}) {
+  Widget buildTextField(
+    String label,
+    TextEditingController controller, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(

@@ -47,6 +47,7 @@ class SplashPageState extends State<SplashPage> {
         UserData.email = data['email'];
         UserData.role = data['role'];
         UserData.status = data['status'];
+        UserData.unitName = data['unitName'];
         UserData.uid = user.uid;
         if (!context.mounted) return;
         if (UserData.status == 'accepted') {

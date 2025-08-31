@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/adminPages/features/incident_report/incident_report_screen.dart';
+import 'package:flutter_application_1/ahqPages/report_type.dart';
 import 'package:flutter_application_1/models/search_item.dart';
 import 'package:flutter_application_1/models/user_data.dart';
 import 'package:flutter_application_1/userPages/chat_contact.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import 'report_generation_page.dart';
 import 'exam_module_page.dart';
 import 'settings_page.dart';
@@ -24,6 +28,10 @@ class UserDashboardPage extends StatefulWidget {
 }
 
 class UserDashboardPageState extends State<UserDashboardPage> {
+  List<Map<String, dynamic>> notifications = [];
+  StreamSubscription<QuerySnapshot>? _notificationSubscription;
+  int notifCount = 0;
+
   TextEditingController searchController = TextEditingController();
   FocusNode searchFocusNode = FocusNode();
   String searchQuery = '';
@@ -36,17 +44,17 @@ class UserDashboardPageState extends State<UserDashboardPage> {
 
   // Search data for different categories
   final List<SearchItem> allSearchItems = [
-    // Features/Pages
-    SearchItem(
-      title: 'Generate Report',
-      category: 'Features',
-      keywords: ['report', 'generate', 'document'],
-      icon: Icons.description,
-      onTap: (context) => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const ReportGenerationPage()),
-      ),
-    ),
+    // // Features/Pages
+    // SearchItem(
+    //   title: 'Generate Report',
+    //   category: 'Features',
+    //   keywords: ['report', 'generate', 'document'],
+    //   icon: Icons.description,
+    //   onTap: (context) => Navigator.push(
+    //     context,
+    //     MaterialPageRoute(builder: (context) => const ReportGenerationPage()),
+    //   ),
+    // ),
     SearchItem(
       title: 'Exam Module',
       category: 'Features',
@@ -75,6 +83,16 @@ class UserDashboardPageState extends State<UserDashboardPage> {
       onTap: (context) => Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const ContactInfoPage()),
+      ),
+    ),
+    SearchItem(
+      title: 'Report Generator',
+      category: 'Features',
+      keywords: ['report', 'generator'],
+      icon: Icons.pending_actions,
+      onTap: (context) => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ReportTypeSelectorPage()),
       ),
     ),
     SearchItem(
@@ -135,13 +153,13 @@ class UserDashboardPageState extends State<UserDashboardPage> {
       icon: Icons.exit_to_app,
       onTap: (context) => _showComingSoon(context, 'Request Leave'),
     ),
-    SearchItem(
-      title: 'Report Incident',
-      category: 'Quick Actions',
-      keywords: ['incident', 'report', 'emergency', 'alert'],
-      icon: Icons.warning,
-      onTap: (context) => _showComingSoon(context, 'Report Incident'),
-    ),
+    // SearchItem(
+    //   title: 'Report Incident',
+    //   category: 'Quick Actions',
+    //   keywords: ['incident', 'report', 'emergency', 'alert'],
+    //   icon: Icons.warning,
+    //   onTap: (context) => _showComingSoon(context, 'Report Incident'),
+    // ),
     SearchItem(
       title: 'Training Calendar',
       category: 'Quick Actions',
@@ -181,12 +199,39 @@ class UserDashboardPageState extends State<UserDashboardPage> {
         isSearchActive = searchFocusNode.hasFocus;
       });
     });
+
+    _setupNotificationListener();
+  }
+
+  void _setupNotificationListener() {
+    _notificationSubscription = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('targetId', isEqualTo: UserData.uid)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .listen((snapshot) {
+          setState(() {
+            notifications = snapshot.docs.map((doc) {
+              final data = doc.data();
+              return {
+                'id': doc.id,
+                'content': data['content'] ?? '',
+                'createdAt': data['createdAt'],
+                'seen': data['seen'] ?? false,
+              };
+            }).toList();
+
+            // Count unseen notifications
+            notifCount = notifications.where((notif) => !notif['seen']).length;
+          });
+        });
   }
 
   @override
   void dispose() {
     searchController.dispose();
     searchFocusNode.dispose();
+    _notificationSubscription?.cancel();
     super.dispose();
   }
 
@@ -310,10 +355,67 @@ class UserDashboardPageState extends State<UserDashboardPage> {
   //     },
   //   );
   // }
-  int notifCount = 0;
-  final List<String> notifications = [];
+
+  Future<void> _markNotificationAsSeen(String notificationId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('notifications')
+          .doc(notificationId)
+          .update({'seen': true});
+    } catch (e) {
+      print('Error marking notification as seen: $e');
+    }
+  }
+
+  Future<void> _markAllNotificationsAsSeen() async {
+    try {
+      // Get all unseen notifications for user
+      final batch = FirebaseFirestore.instance.batch();
+
+      for (final notification in notifications) {
+        if (!notification['seen']) {
+          final docRef = FirebaseFirestore.instance
+              .collection('notifications')
+              .doc(notification['id']);
+          batch.update(docRef, {'seen': true});
+        }
+      }
+
+      await batch.commit();
+
+      // Update local state immediately
+      setState(() {
+        notifCount = 0;
+        for (var i = 0; i < notifications.length; i++) {
+          notifications[i]['seen'] = true;
+        }
+      });
+    } catch (e) {
+      print('Error marking all notifications as seen: $e');
+    }
+  }
+
+  String _formatTimestamp(Timestamp? timestamp) {
+    if (timestamp == null) return '';
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minutes ago';
+    } else {
+      return 'Just now';
+    }
+  }
 
   void showNotificationPanel(BuildContext context) {
+    // Mark all unseen notifications as seen when panel opens
+    _markAllNotificationsAsSeen();
+
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -329,19 +431,53 @@ class UserDashboardPageState extends State<UserDashboardPage> {
               ),
               const Divider(),
               Expanded(
-                child: ListView.builder(
-                  itemCount: notifications.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(notifications[index]),
-                      leading: const Icon(Icons.notification_important),
-                      onTap: () {
-                        // Handle notification tap
-                        print("Tapped on: ${notifications[index]}");
-                      },
-                    );
-                  },
-                ),
+                child: notifications.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.notifications_none,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'No notifications yet',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: notifications.length,
+                        itemBuilder: (context, index) {
+                          final notification = notifications[index];
+                          return ListTile(
+                            title: Text(notification['content'] ?? ''),
+                            leading: Icon(
+                              Icons.notification_important,
+                              color: notification['seen']
+                                  ? Colors.grey
+                                  : Colors.red,
+                            ),
+                            subtitle: notification['createdAt'] != null
+                                ? Text(
+                                    'Received: ${_formatTimestamp(notification['createdAt'])}',
+                                    style: const TextStyle(fontSize: 12),
+                                  )
+                                : null,
+                            onTap: () {
+                              // Mark as seen when tapped
+                              _markNotificationAsSeen(notification['id']);
+                              print("Tapped on: ${notification['content']}");
+                            },
+                          );
+                        },
+                      ),
               ),
             ],
           ),
@@ -410,9 +546,6 @@ class UserDashboardPageState extends State<UserDashboardPage> {
                   size: 30,
                 ),
                 onPressed: () {
-                  setState(() {
-                    notifCount = 0;
-                  });
                   showNotificationPanel(context); // Open the modal bottom sheet
                 },
               ),
@@ -792,14 +925,15 @@ class UserDashboardPageState extends State<UserDashboardPage> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
-                                        const ReportGenerationPage(),
+                                        const ReportTypeSelectorPage(),
                                   ),
                                 );
                               },
+
                               child: _buildCardItem(
                                 context,
                                 Icons.description,
-                                'Generate\nReport',
+                                'Report\nGenerator',
                               ),
                             ),
                             GestureDetector(
@@ -850,22 +984,22 @@ class UserDashboardPageState extends State<UserDashboardPage> {
                                 'Training\nCalendar',
                               ),
                             ),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const ReportIncidentPage(),
-                                  ),
-                                );
-                              },
-                              child: _buildCardItem(
-                                context,
-                                Icons.warning,
-                                'Report\nIncident',
-                              ),
-                            ),
+                            // GestureDetector(
+                            //   onTap: () {
+                            //     Navigator.push(
+                            //       context,
+                            //       MaterialPageRoute(
+                            //         builder: (context) =>
+                            //             const ReportIncidentPage(),
+                            //       ),
+                            //     );
+                            //   },
+                            //   child: _buildCardItem(
+                            //     context,
+                            //     Icons.warning,
+                            //     'Report\nIncident',
+                            //   ),
+                            // ),
                             GestureDetector(
                               onTap: () {
                                 Navigator.push(

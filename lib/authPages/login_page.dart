@@ -33,6 +33,7 @@ class LoginPageState extends State<LoginPage> {
       UserData.role = data['role'];
       UserData.status = data['status'];
       UserData.uid = uid;
+      UserData.unitName = data['unitName'];
       return;
     }
     throw Exception('Unexpected error occured!');

@@ -34,6 +34,7 @@ class WelcomeScreenState extends State<WelcomeScreen> {
         UserData.role = data['role'];
         UserData.status = data['status'];
         UserData.uid = UserData.uid;
+        UserData.unitName = data['unitName'];
         if (!context.mounted) return;
         if (UserData.status == 'accepted') {
           final prefs = await SharedPreferences.getInstance();

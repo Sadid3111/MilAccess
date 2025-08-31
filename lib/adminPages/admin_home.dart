@@ -3,18 +3,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/adminPages/pending_requests_screen.dart';
 import 'package:flutter_application_1/ahqPages/profile_page.dart';
+import 'package:flutter_application_1/ahqPages/report_type.dart';
 import 'package:flutter_application_1/models/search_item.dart';
 import 'package:flutter_application_1/models/user_data.dart';
 import 'package:flutter_application_1/userPages/contact_info_page.dart';
 import 'package:flutter_application_1/userPages/quick_notes_page.dart';
 import 'package:flutter_application_1/userPages/settings_page.dart';
 import 'package:flutter_application_1/userPages/training_calender_page.dart';
-import 'package:intl/intl.dart';
 import 'document_upload.dart';
-import '../features/pending_leave_requests/pending_leave_requests_screen.dart';
-import '../features/incident_report/incident_report_screen.dart';
-import '../features/task_management/task_management.dart';
-import '../features/quick_notes/quick_notes_screen.dart';
+import 'features/pending_leave_requests/pending_leave_requests_screen.dart';
+import 'features/incident_report/incident_report_screen.dart';
+import 'features/task_management/task_management.dart';
+import 'features/quick_notes/quick_notes_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -84,9 +84,21 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       onTap: (context) {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const IncidentReportScreen()),
+          MaterialPageRoute(
+            builder: (context) => const IncidentReportScreen(role: 'admin'),
+          ),
         );
       },
+    ),
+    SearchItem(
+      title: 'Report Generator',
+      category: 'Admin Actions',
+      keywords: ['report', 'generator'],
+      icon: Icons.pending_actions,
+      onTap: (context) => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ReportTypeSelectorPage()),
+      ),
     ),
     SearchItem(
       title: 'Task Management',
@@ -116,23 +128,97 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Future<void> updateOnseen() async {
     try {
-      final notifRef = await FirebaseFirestore.instance
+      // Get unseen notifications for both individual user and unit
+      final userNotifRef = await FirebaseFirestore.instance
           .collection('notifications')
           .where('targetId', isEqualTo: UserData.uid)
           .where('seen', isEqualTo: false)
           .get();
+
+      final unitNotifRef = await FirebaseFirestore.instance
+          .collection('notifications')
+          .where('targetId', isEqualTo: UserData.unitName)
+          .where('seen', isEqualTo: false)
+          .get();
+
       WriteBatch batch = FirebaseFirestore.instance.batch();
-      for (var doc in notifRef.docs) {
+
+      // Mark user notifications as seen
+      for (var doc in userNotifRef.docs) {
+        batch.update(doc.reference, {'seen': true});
+      }
+
+      // Mark unit notifications as seen
+      for (var doc in unitNotifRef.docs) {
         batch.update(doc.reference, {'seen': true});
       }
 
       await batch.commit();
     } catch (e) {
-      print('error: ' + e.toString());
+      print('error: $e');
+    }
+  }
+
+  Future<void> _markNotificationAsSeen(String notificationId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('notifications')
+          .doc(notificationId)
+          .update({'seen': true});
+    } catch (e) {
+      print('Error marking notification as seen: $e');
+    }
+  }
+
+  Future<void> _markAllNotificationsAsSeen() async {
+    try {
+      // Get all unseen notifications for admin (both individual and unit-based)
+      final batch = FirebaseFirestore.instance.batch();
+
+      for (final notification in notifications) {
+        if (!notification['seen']) {
+          final docRef = FirebaseFirestore.instance
+              .collection('notifications')
+              .doc(notification['id']);
+          batch.update(docRef, {'seen': true});
+        }
+      }
+
+      await batch.commit();
+
+      // Update local state immediately
+      setState(() {
+        notifCount = 0;
+        for (var i = 0; i < notifications.length; i++) {
+          notifications[i]['seen'] = true;
+        }
+      });
+    } catch (e) {
+      print('Error marking all notifications as seen: $e');
+    }
+  }
+
+  String _formatTimestamp(Timestamp? timestamp) {
+    if (timestamp == null) return '';
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minutes ago';
+    } else {
+      return 'Just now';
     }
   }
 
   void showNotificationPanel(BuildContext context) async {
+    // Mark all unseen notifications as seen when panel opens
+    _markAllNotificationsAsSeen();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -149,39 +235,59 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ),
               const Divider(),
               Expanded(
-                child: ListView.builder(
-                  itemCount: notifications.length,
-                  itemBuilder: (context, index) {
-                    // Format the createdAt field
-                    final createdAt = notifications[index]['createdAt'];
-                    final formattedDate = createdAt != null
-                        ? DateFormat('MMM dd, yyyy hh:mm a').format(
-                            createdAt is Timestamp
-                                ? createdAt.toDate()
-                                : createdAt,
-                          )
-                        : 'Unknown Date';
-
-                    return ListTile(
-                      title: Text(notifications[index]['content']),
-                      subtitle: Text(
-                        formattedDate,
-                      ), // Display the formatted createdAt field
-                      leading: const Icon(Icons.notification_important),
-                      onTap: () {
-                        print("Tapped on: ${notifications[index]}");
-                      },
-                    );
-                  },
-                ),
+                child: notifications.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.notifications_none,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'No notifications yet',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: notifications.length,
+                        itemBuilder: (context, index) {
+                          final notification = notifications[index];
+                          return ListTile(
+                            title: Text(notification['content'] ?? ''),
+                            leading: Icon(
+                              Icons.notification_important,
+                              color: notification['seen']
+                                  ? Colors.grey
+                                  : Colors.red,
+                            ),
+                            subtitle: notification['createdAt'] != null
+                                ? Text(
+                                    'Received: ${_formatTimestamp(notification['createdAt'])}',
+                                    style: const TextStyle(fontSize: 12),
+                                  )
+                                : null,
+                            onTap: () {
+                              // Mark as seen when tapped
+                              _markNotificationAsSeen(notification['id']);
+                              print("Tapped on: ${notification['content']}");
+                            },
+                          );
+                        },
+                      ),
               ),
             ],
           ),
         );
       },
     );
-
-    await updateOnseen();
   }
 
   // Future<void> fetchOldNotification() async {
@@ -218,25 +324,33 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       });
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      //await fetchOldNotification();
-      _notifListener = FirebaseFirestore.instance
-          .collection('notifications')
-          .orderBy('createdAt', descending: true)
-          .where('targetId', isEqualTo: UserData.uid)
-          .snapshots()
-          .listen((snapshot) {
-            if (snapshot.docs.isNotEmpty) {
-              setState(() {
-                for (var change in snapshot.docChanges) {
-                  if (change.type == DocumentChangeType.added) {
-                    if (!change.doc.data()!['seen']) notifCount++;
-                    notifications.add(change.doc.data()!); // new notif
-                  }
-                }
-              });
-            }
-          });
+      _setupNotificationListener();
     });
+  }
+
+  void _setupNotificationListener() {
+    // Listen for both individual notifications and unit-based notifications
+    _notifListener = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('targetId', whereIn: [UserData.uid, UserData.unitName])
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .listen((snapshot) {
+          setState(() {
+            notifications = snapshot.docs.map((doc) {
+              final data = doc.data();
+              return {
+                'id': doc.id,
+                'content': data['content'] ?? '',
+                'createdAt': data['createdAt'],
+                'seen': data['seen'] ?? false,
+              };
+            }).toList();
+
+            // Count unseen notifications
+            notifCount = notifications.where((notif) => !notif['seen']).length;
+          });
+        });
   }
 
   @override
@@ -295,9 +409,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   size: 30,
                 ),
                 onPressed: () {
-                  setState(() {
-                    notifCount = 0;
-                  });
                   showNotificationPanel(context); // Open the modal bottom sheet
                 },
               ),
@@ -708,6 +819,20 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                             ),
                             _buildGridItem(
                               context,
+                              label: 'Report Generator',
+                              icon: Icons.assignment, // Custom icon
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const ReportTypeSelectorPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildGridItem(
+                              context,
                               icon: Icons
                                   .warning_amber, // Icon for Incident Report
                               label: 'Incident Report',
@@ -716,7 +841,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
-                                        const IncidentReportScreen(),
+                                        const IncidentReportScreen(
+                                          role: 'admin',
+                                        ),
                                   ),
                                 );
                               },
